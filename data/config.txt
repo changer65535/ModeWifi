@@ -1,0 +1,11 @@
+//addFile ssid.txt
+quickSSID OTIS,OTdont4get
+addFile filters.txt
+start
+
+
+
+
+
+
+

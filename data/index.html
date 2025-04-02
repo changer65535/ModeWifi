@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="us">
+<head>
+	<meta charset="utf-8">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="apple-mobile-web-app-title" content="Lunch">
+	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+	<meta http-equiv="Pragma" content="no-cache" />
+	<meta http-equiv="Expires" content="0" />
+
+	<meta name="google" content="notranslate">
+	<meta http-equiv="Content-Language" content="en">
+	<meta name="viewport" content="width=device-width,  minimum-scale=1.0, maximum-scale=1.0">
+	<title>Commode</title>
+	<link href="jquery-ui.min.css" rel="stylesheet">
+	<script src="jquery.min.js"></script>
+	<script src="jquery-ui.min.js"></script>
+
+
+	<style>
+	body{
+		font-family: "Trebuchet MS", sans-serif;
+		margin: 10px;
+	}
+	.demoHeaders {
+		margin-top: 2em;
+	}
+	#dialog-link {
+		padding: .4em 1em .4em 20px;
+		text-decoration: none;
+		position: relative;
+	}
+	#dialog-link span.ui-icon {
+		margin: 0 5px 0 0;
+		position: absolute;
+		left: .2em;
+		top: 50%;
+		margin-top: -8px;
+	}
+	#icons {
+		margin: 0;
+		padding: 0;
+	}
+	#icons li {
+		margin: 2px;
+		position: relative;
+		padding: 4px 0;
+		cursor: pointer;
+		float: left;
+		list-style: none;
+	}
+	#icons span.ui-icon {
+		float: left;
+		margin: 0 4px;
+	}
+	.fakewindowcontain .ui-widget-overlay {
+		position: absolute;
+	}
+	select {
+		width: 200px;
+	}
+	</style>
+</head>
+<body>
+<!===================================================    TITLE  ===================================================-->
+<div id="titleDiv">
+	<button id="menuButton">...</button>
+	Storyland Commode-- Christopher Hanger
+	<ul id="mainMenu">
+		<li><div id="menuUpload">Upload</div></li>
+		<li><div>More Stuff</div></li>
+		<li><div>More Stuff</div>
+	</ul>
+</div>
+
+
+<!-- Accordion -->
+
+<div id="accordion">
+	<!================================================= BUTTONS ==================================================-->
+	<h3>Buttons</h3>
+	<div>
+		<fieldset><legend>Lights: </legend>
+			<button class="ui-button ui-widget ui-corner-all" id="button-lights-cargo">Cargo</button>
+			<button class="ui-button ui-widget ui-corner-all" id="button-lights-cabin">Cabin</button>
+			<button class="ui-button ui-widget ui-corner-all" id="button-lights-awning">Awning</button>
+			<button class="ui-button ui-widget ui-corner-all" id="button-lights-allOn">Lights On</button>
+			<button class="ui-button ui-widget ui-corner-all" id="button-lights-allOff">Lights Off</button>
+		</fieldset>
+
+		<fieldset><legend>Water: </legend>
+			<button class="ui-button ui-widget ui-corner-all" id="button-pump">Pump</button>
+			<button class="ui-button ui-widget ui-corner-all" id="button-circ">Circ</button>
+
+		</fieldset>
+		<br>
+		<fieldset><legend>Awning: </legend>
+			<button class="ui-button ui-widget ui-corner-all" id="button-awning-arm">Arm</button>
+
+
+		</fieldset>
+		<fieldset><legend>Aux/Starlink: </legend>
+			<button class="ui-button ui-widget ui-corner-all" id="button-aux">Aux</button>
+		</fieldset>
+
+		<script>
+			$( "#button-lights-cargo" ).button().on( "click", function() {sendCommand ("pressCargo")});
+			$( "#button-lights-cabin" ).button().on( "click", function() {sendCommand ("pressCabin")});
+			$( "#button-lights-awning" ).button().on( "click", function() {sendCommand ("pressAwning")});
+			$( "#button-lights-allOn" ).button().on( "click", function() {sendCommand ("lightsOn")});
+			$( "#button-lights-allOff" ).button().on( "click", function() {sendCommand ("lightsOff")});
+			$( "#button-pump" ).button().on( "click", function() {sendCommand ("pressPump")});
+			$( "#button-circ" ).button().on( "click", function() {sendCommand ("pressCirc")});
+			//$( "#button-drain" ).button().on( "click", function() {sendCommand ("pressDrain")});
+			$( "#button-aux" ).button().on( "click", function() {sendCommand ("pressAux")});
+
+		</script>
+
+
+	</div>
+
+	<!================================================= LIGHTS ==================================================-->
+
+	<h3>Lights</h3>
+	<div>
+		<div class="lightClass">
+			<label for="checkbox-master">Master</label><input type="checkbox" name="checkbox-master" id="checkbox-master">
+			<div id="slider-master" class="lightSliderClass"></div>
+		</div>
+		<div class = "lightClass">
+			<label for="checkbox-cabin">Cabin</label><input type="checkbox" name="checkbox-cabin" id="checkbox-cabin">
+			<div id="slider-cabin" class="lightSliderClass"></div>
+		</div>
+		<div class = "lightClass">
+			<label for="checkbox-reading">Reading</label><input type="checkbox" name="checkbox-reading" id="checkbox-reading"><br>
+			<div id="slider-reading" class="lightSliderClass"></div>
+		</div>
+		<div class = "lightClass">
+			<label for="checkbox-cargo">Cargo</label><input type="checkbox" name="checkbox-cargo" id="checkbox-cargo"><br>
+			<div id="slider-cargo" class="lightSliderClass"></div>
+		</div>
+		<div class = "lightClass">
+			<label for="checkbox-awning">Awning</label><input type="checkbox" name="checkbox-awning" id="checkbox-awning"><br>
+			<div id="slider-awning" class="lightSliderClass"></div>
+		</div>
+
+
+
+		<style>
+			.lightClass
+			{
+				padding: 10px;
+				display:inline-flex;
+				width:100%;
+
+			}
+			.lightSliderClass
+			{
+				display:inline;
+				width:100%;
+				height:10px%;
+				margin-left: 50px;
+
+			}
+
+		</style>
+
+	</div>
+
+	<!================================================= MISC ==================================================-->
+	<h3>Tank Levels</h3>
+	<div>
+		Fresh Water Level<br>
+		<div id="progressbar-freshWaterLevel"></div>
+		<br>
+
+		Gray Water Level<br>
+		<div id="progressbar-grayWaterLevel"></div>
+		<br>
+
+
+
+	</div>
+
+	<!-- =================================  HEAT============================================= -->
+	<h3>Heat (offline)</h3>
+	<div>
+		<div id="heatInteriorTemp">Interior Temp: 74<br></div>
+		<label for="heatTargetTemp">Target temperature:</label><input id="heatTargetTemp" name="value">
+
+		<fieldset><legend>Source: </legend>
+			<label for="radio-1">Fuel</label><input type="radio" name="radio-source" id="radio-1">
+			<label for="radio-2">Electric</label><input type="radio" name="radio-source" id="radio-2">
+			<label for="radio-3">Dual</label><input type="radio" name="radio-source" id="radio-3">
+		</fieldset>
+		<fieldset>  <legend id="heaterFanLegend">Fan: </legend>
+			<label for="radio-4">Low</label><input type="radio" name="radio-fan" id="radio-4">
+			<label for="radio-5">Medium</label><input type="radio" name="radio-fan" id="radio-5">
+			<label for="radio-6">High</label><input type="radio" name="radio-fan" id="radio-6">
+			<label for="radio-7">AUTO</label><input type="radio" name="radio-fan" id="radio-7">
+		</fieldset>
+		<fieldset><legend>Mode: </legend>
+			<label for="radio-8">Eco</label><input type="radio" name="radio-mode" id="radio-8">
+			<label for="radio-9">Comfort</label><input type="radio" name="radio-mode" id="radio-9">
+
+	</fieldset>
+	</div>
+	<!================================================= A/C ==================================================-->
+	<h3>A/C</h3>
+	<div>
+		<fieldset>
+			<legend>Mode:</legend>
+			<label for="radio-modeOff">Off</label><input type="radio" name="radio-mode" id="radio-modeOff"/>
+			<label for="radio-modeCool">Cool</label><input type="radio" name="radio-mode" id="radio-modeCool"/>
+			<label for="radio-modeHeat">Heat</label><input type="radio" name="radio-mode" id="radio-modeHeat"/>
+			<label for="radio-modeFanOnly">Fan Only</label><input type="radio" name="radio-mode" id="radio-modeFanOnly"/>
+
+
+		</fieldset>
+		<fieldSet>
+			<legend>Temp:</legend>
+			<div id="acInteriorTemp">Current Temp: 74</div>
+			<label for="acTargetTemp">Target Temperature:</label><input id="acTargetTemp" name="value">
+			<button class="ui-button ui-widget ui-corner-all" id="">Enter</button>
+
+		</fieldSet>
+		<fieldset>
+			<legend>Fan Speed:</legend>
+
+			<label for="radio-fanSpeedLow">Low</label><input type="radio" name="radio-fanSpeed" id="radio-fanSpeedLow"/>
+			<label for="radio-fanSpeedHigh">High</label><input type="radio" name="radio-fanSpeed" id="radio-fanSpeedHigh"/>
+
+		</fieldset>
+		<fieldset>
+			<legend>Fan Mode:</legend>
+			<label for="radio-alwaysOn">Always On</label><input type="radio" name="radio-compressor" id="radio-alwaysOn"/>
+			<label for="radio-auto">Auto</label><input type="radio" name="radio-compressor" id="radio-auto"/>
+		</fieldset>
+
+		<script>
+			$( "#radio-modeOff" ).button().on( "click", function() {sendCommand ("acOff")});
+			$( "#radio-modeCool" ).button().on( "click", function() {sendCommand ("acOn")});
+			$( "#radio-modeHeat" ).button().on( "click", function() {sendCommand ("acModeHeat")});
+			$( "#radio-modeFanOnly" ).button().on( "click", function() {sendCommand ("acFanOnly")});
+
+			$( "#radio-fanSpeedLow" ).button().on( "click", function() {sendCommand ("acFanLow")});
+			$( "#radio-fanSpeedHigh" ).button().on( "click", function() {sendCommand ("acFanHigh")});
+
+			$( "#radio-alwaysOn" ).button().on( "click", function() {sendCommand ("acAlwaysOn")});
+			$( "#radio-auto" ).button().on( "click", function() {sendCommand ("acAuto")});
+
+
+
+		</script>
+	</div>
+	<!--============================================ VENT =========================================================-->
+	<h3>VENT</h3>
+	<div>
+		<fieldset>
+			<legend>Fan:</legend>
+			<label for="radio-ventFanOff">Off</label><input type="radio" name="radio-ventFan" id="radio-ventFanOff"/>
+			<label for="radio-ventFanOn">On</label><input type="radio" name="radio-ventFan" id="radio-ventFanOn"/>
+			<br>
+			Speed:
+			<div id="slider-fan" ></div>
+		</fieldset>
+
+
+
+		<fieldset>
+			<legend>Airflow (out only):</legend>
+			<label for="radio-ventAirflowIn">In</label><input type="radio" name="radio-ventAirflow" id="radio-ventAirflowIn"/>
+			<label for="radio-ventAirflowOut">Out</label><input type="radio" name="radio-ventAirflow" id="radio-ventAirflowOut"/>
+		</fieldset>
+		<fieldset>
+			<legend>Vent:</legend>
+			<label for="radio-ventOpen">Open</label><input type="radio" name="radio-vent" id="radio-ventOpen"/>
+			<label for="radio-ventClose">Closed</label><input type="radio" name="radio-vent" id="radio-ventClose"/>
+			<br>
+			<div id="slider-vent"></div>
+
+
+		</fieldset>
+		<script>
+			$( "#radio-ventOpen" ).button().on( "click", function() {sendCommand ("openVent")});
+			$( "#radio-ventClose" ).button().on( "click", function() {sendCommand ("closeVent")});
+			$( "#radio-ventFanOn" ).button().on( "click", function() {sendCommand ("setVentSpeed 50")});
+			$( "#radio-ventFanOff" ).button().on( "click", function() {sendCommand ("setVentSpeed 0")});
+
+
+
+		</script>
+
+	</div>
+	<!-- SETTINGS -->
+	<h3>Settings</h3>
+	<div>Settings Stuff Here</div>
+
+</div>
+
+
+<script>
+	//////////////////////////////////JAVASCRIPT////////////////////////////////////
+	var heater;
+	function merge_options(obj1,obj2)
+	{
+		var obj3 = {};
+		for (var attrname in obj1) { obj3[attrname] = obj1[attrname]; }
+		for (var attrname in obj2) { obj3[attrname] = obj2[attrname]; }
+		return obj3;
+	}
+	function sendPost (command,args,f)
+	{
+
+
+		var newArr = merge_options({command:command},args);
+		$.post("cm.dum",newArr,function(s)
+		{
+			{
+				if (s!= "") s = $.parseJSON(s);
+				f(s);
+
+			}
+		});
+	}
+	function sendCommand (s)
+	{
+		sendPost("sendString",{str:s},function (s)
+		{
+
+		});
+	}
+	function CtoF (value)
+	{
+		return ((value * 9/5) + 32);
+	}
+	function FtoC (value)
+	{
+		return ((value - 32) * 5/9);
+	}
+	function getHeaterInfo (s)
+	{
+		sendPost("getAllInfo",{},function (s)
+		{
+			heater = s.heater;
+			ac = s.acInfo;
+			tankInfo = s.tankInfo;
+			$("#heaterFanLegend").text("Fan: " + heater.nFanSpeed);
+			$("#heatInteriorTemp").text("Interior Temp: " + s.miscInfo.fAmbientTemp.toFixed(1));
+			$("#heatTargetTemp" ).spinner( "value", heater.fTargetTemp);
+			$("#acInteriorTemp").text("Interior Temp: " + s.miscInfo.fAmbientTemp.toFixed(1) + " / Target:" + ac.fTargetTemp.toFixed(1));
+
+			$("#progressbar-freshWaterLevel").progressbar({value: 100 * tankInfo.nFreshTankLevel / 24});
+			$("#progressbar-grayWaterLevel").progressbar({value: 100 * tankInfo.nGrayTankLevel / 24});
+			$("#slider-vent").progressbar({value: s.miscInfo.nVentSpeed});
+
+		});
+	}
+
+
+	function initScreen ()
+	{
+
+		let m = $( "#mainMenu" );
+		$(m).menu();
+		$(m).css("position","absolute");
+		$(m).css("left","10px");
+		$(m).css("top","30px");
+		$(m).css("z-index","99999");
+		$(m).hide();
+
+		let mb = $("#menuButton");
+		mb.on( "click", function( event ) {
+			event.preventDefault();
+			$("#mainMenu").slideToggle();
+		} );
+		$( "#mainMenu" ).on( "menuselect", function( event, ui )
+		{
+			window.location.href = "upload.html";
+		} );
+		$("#accordion").accordion({
+			heightStyle: "content"
+		});
+		$("#progressbar-freshWaterLevel").progressbar({
+			value: 40
+
+		});
+		$("#progressbar-grayWaterLevel").progressbar({
+			value: 75
+		});
+
+		$("input[type='checkbox']").checkboxradio({
+			icon: false
+		});
+
+		$("input[type='radio']").checkboxradio({
+			icon: false
+		});
+		/////LIGHTS
+		$("#slider-master").slider({
+			value: 0,
+			min: 0,
+			max: 100,
+			step: 5,
+			stop: function( event, ui )
+			{
+				sendCommand("masterLightLevel=" + ui.value);
+				//$( "#value" ).text( "Slider value: " + ui.value );
+			}
+		});
+		$("#slider-cabin").slider({
+			value: 0,
+			min: 0,
+			max: 100,
+			step: 5,
+			stop: function( event, ui )
+			{
+				sendCommand("cabinLightLevel=" + ui.value);
+				//$( "#value" ).text( "Slider value: " + ui.value );
+			}
+
+		});
+		$("#slider-reading").slider({
+			value: 0,
+			min: 0,
+			max: 100,
+			step: 10,
+		});
+		$("#slider-cargo").slider({
+			value: 0,
+			min: 0,
+			max: 100,
+			step: 10,
+		});
+		$("#slider-awning").slider({
+			value: 0,
+			min: 0,
+			max: 100,
+			step: 10,
+		});
+
+		$("#checkbox-master").change(function()
+		{
+			if ($(this).is(':checked')) sendCommand("masterLight=1");
+			else sendCommand("masterLight=0");
+		});
+		$("#checkbox-cabin").change(function()
+		{
+			if ($(this).is(':checked')) sendCommand("cabinLight=1");
+			else sendCommand("cabinLight=0");
+		});
+		//AC
+		let spinner1 = $("#acTargetTemp").spinner();
+		spinner1.spinner("value", 00);
+		$(spinner1).spinner ({
+			change:function ()
+			{
+				let tempC = FtoC(this.value).toFixed(1);
+
+				sendCommand("acSetTemp " + tempC);
+			}
+		});
+		let spinner2 = $("#heatTargetTemp").spinner();
+		spinner2.spinner("value", 00);
+		//Heat
+
+		$("#slider-fan").slider({
+			value: 0,
+			min: 0,
+			max: 100,
+			step: 10,
+
+		});
+		//INVERTER
+		//$("#checkbox-inverter").change(function()
+		//{
+		//	if ($(this).is(':checked')) sendCommand("inverter=1");
+		//	else sendCommand("inverter=0");
+		//});
+		$("#checkbox-pump").change(function()
+		{
+			if ($(this).is(':checked')) sendCommand("pump=1");
+			else sendCommand("pump=0");
+		});
+		$("#slider-inverter").slider({
+			value: 10,
+			min: 10,
+			max: 30,
+			step: 10,
+			slide: function (event, ui) {
+				$("#inverter-amount").val(ui.value + " amps");
+			}
+		});
+		$("#inverter-amount").val($("#slider-inverter").slider("value"));
+		///VENT
+		$("#slider-vent").slider({
+			value: 0,
+			min: 0,
+			max: 100,
+			step: 5,
+			stop: function( event, ui )
+			{
+				sendCommand("setVentSpeed " + ui.value);
+				//$( "#value" ).text( "Slider value: " + ui.value );
+			}
+
+		});
+
+
+	}
+	/////////////////////////////////////////////////////////////////////////
+	$(document).ready(function()
+	{
+		initScreen();
+		setInterval(getHeaterInfo, 5000);
+	});
+</script>
+</body>
+</html>

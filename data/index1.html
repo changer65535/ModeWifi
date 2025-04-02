@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="us">
+<head>
+	<meta charset="utf-8">
+	<title>jQuery UI Example Page</title>
+	<link href="jquery-ui.min.css" rel="stylesheet">
+	<style>
+	body{
+		font-family: "Trebuchet MS", sans-serif;
+		margin: 50px;
+	}
+	.demoHeaders {
+		margin-top: 2em;
+	}
+	#dialog-link {
+		padding: .4em 1em .4em 20px;
+		text-decoration: none;
+		position: relative;
+	}
+	#dialog-link span.ui-icon {
+		margin: 0 5px 0 0;
+		position: absolute;
+		left: .2em;
+		top: 50%;
+		margin-top: -8px;
+	}
+	#icons {
+		margin: 0;
+		padding: 0;
+	}
+	#icons li {
+		margin: 2px;
+		position: relative;
+		padding: 4px 0;
+		cursor: pointer;
+		float: left;
+		list-style: none;
+	}
+	#icons span.ui-icon {
+		float: left;
+		margin: 0 4px;
+	}
+	.fakewindowcontain .ui-widget-overlay {
+		position: absolute;
+	}
+	select {
+		width: 200px;
+	}
+	</style>
+</head>
+<body>
+
+<h1>Storyland Commode</h1>
+
+
+
+<!-- Accordion -->
+<h2 class="demoHeaders">THIS IS UBERBETA</h2>
+<div id="accordion">
+	<!-- HOME -->
+	<h3>Home</h3>
+	<div>
+		<label for="cb-1">Inverter</label><input type="checkbox" name="cb-1" id="cb-1">
+		<label for="checkbox-2">Pump</label><input type="checkbox" name="checkbox-2" id="checkbox-2">
+		<label for="checkbox-3">Hot Water</label><input type="checkbox" name="checkbox-3" id="checkbox-3">
+		<br>
+		<br>
+
+		Fresh Water Level<br>
+		<div id="progressbar1"></div>
+		<br>
+
+		Gray Water Level<br>
+		<div id="progressbar2"></div>
+		<br>
+		<p>
+			<label for="amount">Inverter Branch Amps:</label>
+			<input type="text" id="amount" readonly="">
+		</p>
+
+		<div id="slider" style="width:50%"></div>
+	</div>
+	<!================================================= LIGHTS ==================================================-->
+	<h3>Lights</h3>
+	<div>
+		<div class="lightClass">
+			<label for="checkbox-master">Master</label><input type="checkbox" name="checkbox-master" id="checkbox-master">
+			<div id="slider-master" class="lightSliderClass"></div>
+		</div>
+		<div class = "lightClass">
+			<label for="checkbox-cabin">Cabin</label><input type="checkbox" name="checkbox-cabin" id="checkbox-cabin">
+			<div id="slider-cabin" class="lightSliderClass"></div>
+		</div>
+		<div class = "lightClass">
+			<label for="checkbox-reading">Reading</label><input type="checkbox" name="checkbox-reading" id="checkbox-reading"><br>
+			<div id="slider-reading" class="lightSliderClass"></div>
+		</div>
+		<div class = "lightClass">
+			<label for="checkbox-cargo">Cargo</label><input type="checkbox" name="checkbox-cargo" id="checkbox-cargo"><br>
+			<div id="slider-cargo" class="lightSliderClass"></div>
+		</div>
+		<div class = "lightClass">
+			<label for="checkbox-awning">Awning</label><input type="checkbox" name="checkbox-awning" id="checkbox-awning"><br>
+			<div id="slider-awning" class="lightSliderClass"></div>
+		</div>
+
+
+
+	<style>
+		.lightClass
+		{
+
+
+			padding: 10px;
+			display:inline-flex;
+			width:100%;
+
+		}
+		.lightSliderClass
+		{
+			display:inline;
+			width:100%;
+			height:10px%;
+			margin-left: 50px;
+
+		}
+
+	</style>
+
+	</div>
+	<!-- HEAT -->
+	<h3>Heat</h3>
+	<div>
+		Interior Temp: 74<br>
+		<label for="acTemp">Target temperature:</label><input id="acTemp" name="value">
+
+		<fieldset><legend>Source: </legend>
+			<label for="radio-1">Fuel</label><input type="radio" name="radio-source" id="radio-1">
+			<label for="radio-2">Electric</label><input type="radio" name="radio-source" id="radio-2">
+			<label for="radio-3">Dual</label><input type="radio" name="radio-source" id="radio-3">
+		</fieldset>
+		<fieldset><legend>Fan: </legend>
+			<label for="radio-4">Low</label><input type="radio" name="radio-fan" id="radio-4">
+			<label for="radio-5">Medium</label><input type="radio" name="radio-fan" id="radio-5">
+			<label for="radio-6">High</label><input type="radio" name="radio-fan" id="radio-6">
+			<label for="radio-7">AUTO</label><input type="radio" name="radio-fan" id="radio-7">
+		</fieldset>
+		<fieldset><legend>Mode: </legend>
+			<label for="radio-8">Eco</label><input type="radio" name="radio-mode" id="radio-8">
+			<label for="radio-9">Comfort</label><input type="radio" name="radio-mode" id="radio-9">
+
+	</fieldset>
+	</div>
+	<!-- A/C -->
+	<h3>A/C</h3>
+	<div>Interior Temp: 74<br>
+		<label for="acTemp2">Target Temperature:</label><input id="acTemp2" name="value">
+		<fieldset>
+			<legend>Compressor:</legend>
+			<label for="radio-compressorOff">Off</label><input type="radio" name="radio-compressor" id="radio-compressorOff"/>
+			<label for="radio-compressorOn">On</label><input type="radio" name="radio-compressor" id="radio-compressorOn"/>
+		</fieldset>
+		<fieldset>
+			<legend>Fan:</legend>
+			<label for="radio-fanLow">Low</label><input type="radio" name="radio-fan" id="radio-fanLow"/>
+			<label for="radio-fanHigh">High</label><input type="radio" name="radio-fan" id="radio-fanHigh"/>
+			<label for="radio-fanAuto">Auto</label><input type="radio" name="radio-fan" id="radio-fanAuto"/>
+		</fieldset>
+	</div>
+	<!--============================================ VENT =========================================================-->
+	<h3>VENT</h3>
+	<div>
+		<fieldset>
+			<legend>Fan:</legend>
+			<label for="radio-ventFanOff">Off</label><input type="radio" name="radio-ventFan" id="radio-ventFanOff"/>
+			<label for="radio-ventFanOn">On</label><input type="radio" name="radio-ventFan" id="radio-ventFanOn"/>
+			<br>
+			Speed:
+			<div id="slider-fan" ></div>
+		</fieldset>
+
+
+
+		<fieldset>
+			<legend>Airflow:</legend>
+			<label for="radio-ventAirflowIn">In</label><input type="radio" name="radio-ventAirflow" id="radio-ventAirflowIn"/>
+			<label for="radio-ventAirflowOut">Out</label><input type="radio" name="radio-ventAirflowIn" id="radio-ventAirflowOut"/>
+
+
+		</fieldset>
+		<fieldset>
+			<legend>Vent:</legend>
+			<label for="radio-ventOpen">Open</label><input type="radio" name="radio-vent" id="radio-ventOpen"/>
+			<label for="radio-ventClosed">Closed</label><input type="radio" name="radio-vent" id="radio-ventClosed"/>
+
+
+		</fieldset>
+
+
+	</div>
+	<!-- SETTINGS -->
+	<h3>Settings</h3>
+	<div>Settings Stuff Here</div>
+
+</div>
+
+<script src="jquery.min.js"></script>
+<script src="jquery-ui.min.js"></script>
+<script>
+
+	$("#accordion").accordion({
+		heightStyle: "content"
+	});
+
+	$("#progressbar1").progressbar({
+		value: 40
+	});
+	$("#progressbar2").progressbar({
+		value: 75
+	});
+
+
+	$("#slider-master").slider({
+		value: 0,
+		min: 0,
+		max: 100,
+		step: 10,
+	});
+	$("#slider-cabin").slider({
+		value: 0,
+		min: 0,
+		max: 100,
+		step: 10,
+	});
+	$("#slider-reading").slider({
+		value: 0,
+		min: 0,
+		max: 100,
+		step: 10,
+	});
+	$("#slider-cargo").slider({
+		value: 0,
+		min: 0,
+		max: 100,
+		step: 10,
+	});
+	$("#slider-awning").slider({
+		value: 0,
+		min: 0,
+		max: 100,
+		step: 10,
+	});
+	$("#slider-fan").slider({
+		value: 0,
+		min: 0,
+		max: 100,
+		step: 10,
+
+	});
+
+
+	$("#slider").slider({
+		value: 10,
+		min: 10,
+		max: 30,
+		step: 10,
+		slide: function (event, ui) {
+			$("#amount").val(ui.value + " amps");
+		}
+	});
+
+
+	$("#amount").val($("#slider").slider("value"));
+	$("input[type='checkbox']").checkboxradio({
+		icon: false
+	});
+
+	$("input[type='radio']").checkboxradio({
+		icon: false
+	});
+	var spinner1 = $("#acTemp").spinner();
+	spinner1.spinner("value", 73);
+	var spinner2 = $("#acTemp2").spinner();
+	spinner2.spinner("value", 76);
+
+</script>
+</body>
+</html>

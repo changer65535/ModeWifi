@@ -1,24 +1,19 @@
 # ModeWifi
 Adding Wifi to a Storyteller Campervan
 What it can do:
-A/C
-Vent Fan
-Push Buttons
-Tank Status
+1.  A/C
+2.  Vent Fan
+3.  Push Toggle Buttons
+4.  Tank Status
 
 What it cannot do/control:
-Rixens
-Dimming mights
-Battery
-inverter Control
+1.  Rixens
+2.  Dimming mights
+3.  Battery
+4.  inverter Control
 
 This has to do with the mechanism that ModeCom interfaces with it's PDM's/Rixens.  
 It may be possible to COMPLETELY REPLACE Mode Com with this device-- at least on Com Bus 1
-
-
-
-
-
 
 Step 1.  Build/Buy a splitter cable.
 I used DT plugs and a crimper.  These plugs are awesome and useful, for when you need to connect-re-connect anything in the future.  

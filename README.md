@@ -1,5 +1,8 @@
+
 # ModeWifi
 Adding Wifi to a Storyteller Campervan
+04/04/25:  Added double tap to turn off everything possible.  Turns off pumps, lights, ac and fan.  Then retracts awning and turns off awning lihts
+
 What it can do:
 1.  A/C
 2.  Vent Fan

@@ -2,6 +2,15 @@
 #include <Uri.h>
 #include <HTTP_Method.h>
 #include "cm.h"
+#include <SPI.h>
+#include <Wire.h>
+#include <ESPmDNS.h>
+#include <SPIFFS.h>
+#include <WiFi.h>
+#include <ArduinoJson.h>
+#include <mcp2515.h>
+
+
 CM cm;
 long lDataTimer = millis();
 char dataBuffer[160];
@@ -23,6 +32,7 @@ bool bVerbose = false;
 
 
 /*
+ * System On messages....
 98EEFF1F 8  2  0 44  E  0  0  0 40 
 98EEFF1E 8  A  0 44  E  0  0  0 40 
 98EAFFFE 3  0 EE  0 
@@ -75,7 +85,7 @@ Motor Lamp (0=lamp, 1=motor): 0
 Loss of Comm: 0
 POR Comm-Enable/Type/Braking: 11111100
 LSC/CAL/Response: 11111111
-
+En
 0.00  94EF1E11 8 F8 FA  0  0  0  0 FC FF 
 PDM Config
 ---------
@@ -213,57 +223,7 @@ LSC/CAL/Response: 11111111
 //        Di-6     Master Light Switch
 //        Di-9     Sink Switch
           
-#define PDM1_COMMAND      0x94ef1e11
-#define PDM2_COMMAND      0x94ef1f11
-#define PDM1_MESSAGE      0x94EF111E
-#define PDM2_MESSAGE      0x94EF111F
-#define TANK_LEVEL        0x99FFB7AF
-#define RIXENS_COMMAND    0x788
-#define THERMOSTAT_AMBIENT_STATUS 0x99FF9C58
-#define THERMOSTAT_STATUS_1 0x99FFE258 
-#define ROOFFAN_STATUS    0x99FEA758
-#define ROOFFAN_CONTROL 0x99FEA603
-#define PDM1_SHORT 0x94E9111E
-#define PDM2_SHORT 0x94E9111F
-#define THERMOSTAT_COMMAND_1 0x99FEF903
 
-
-////////////PDM CONSTANTS DEFINED WITHIN STORYTELLER SCREEN-- MAY OR MAY NOT REFLECT ACTUAL WIRING
-#define PDM1_DIN_CARGO_LIGHT_SW 3
-#define PDM1_DIN_CABIN_LIGHT_SW 4
-#define PDM1_DIN_AWNING_LIGHT_SW 5
-#define PDM1_DIN_RECIRC_PUMP_SW 6
-#define PDM1_DIN_AWNING_ENABLE_SW 7
-#define PDM1_DIN_ENGINE_RUNNING 8
-#define PDM1_DIN_AWNING_IN_SW 11
-#define PDM1_DIN_AWNING_OUT_SW 12
-#define PDM1_OUT_SOLAR_BACKUP 1
-#define PDM1_OUT_CARGO_LIGHTS 2
-#define PDM1_OUT_READING_LIGHTS 3
-#define PDM1_OUT_CABIN_LIGHTS 4
-#define PDM1_OUT_AWNING_LIGHTS 5
-#define PDM1_OUT_RECIRC_PUMP 6
-#define PDM1_OUT_AWNING_ENABLE 7
-#define PDM1_OUT_EXHAUST_FAN 10
-#define PDM1_OUT_FURNACE_POWER 11
-#define PDM1_OUT_WATER_PUMP 12
-
-
-#define PDM2_DIN_AUX_SW 4
-#define PDM2_DIN_WATER_PUMP_SW 5
-#define PDM2_DIN_MASTER_LIGHT_SW 6 f
-#define PDM2_DIN_SINK_SW 9
-#define PDM2_OUT_GALLEY_FAN 2
-#define PDM2_OUT_REGRIGERATOR 3
-#define PDM2_OUT_12V_USB 4
-#define PDM2_OUT_AWNING_MOTOR_PLUS 5
-#define PDM2_OUT_AWNING_MOTOR_MINUS 6
-#define PDM2_OUT_TANK_MONITOR_PWR 7
-#define PDM2_OUT_POWER_SW 8
-#define PDM2_OUT_HVAC_POWER 9
-#define PDM2_OUT_12V_SPEAKER 10
-#define PDM2_OUT_SINK_PUMP 11
-#define PDM2_OUT_AUX_POWER 12
 
 
 
@@ -327,22 +287,14 @@ b[3] = resolution
 */
 
 
-
-#include <SPI.h>
-#include <Wire.h>
-
-
-#include <ESPmDNS.h>
 const char* host = "cm";
 
-#include <SPIFFS.h>
-#include <WiFi.h>
 WebServer server(80);
-#include <ArduinoJson.h>
+
 
 
 //////////////////////////////////CANBUS STUFF////////////////////
-#include <mcp2515.h>
+
 MCP2515 mcp2515(RX);  //pin 10 is where the SPI chip select.  Can be any GPIO
 bool bReadBus = false;
 
@@ -354,7 +306,7 @@ can_frame lastPDM1inputs1to6;
 can_frame lastPDM1inputs7to12;
 can_frame lastPDM2inputs1to6;
 can_frame lastPDM2inputs7to12;
-can_frame lastACCommand;
+
 
 
 
@@ -732,127 +684,7 @@ void printBin(byte aByte)
   for (int8_t aBit = 7; aBit >= 0; aBit--)
     Serial.write(bitRead(aByte, aBit) ? '1' : '0');
 }
-void printCan (can_frame m,bool bLF = true)
-{
-  
-   if (m.can_id == PDM1_COMMAND)    Serial.print("PDM1_CMD ");
-   if (m.can_id == PDM2_COMMAND)    Serial.print("PDM2_CMD ");
-   if (m.can_id == PDM1_MESSAGE)    Serial.print("PDM1_MSG ");
-   if (m.can_id == PDM2_MESSAGE)    Serial.print("PDM2_MSG ");
-   if (m.can_id == TANK_LEVEL)      Serial.print("TANK_LVL ");
-   if (m.can_id == RIXENS_COMMAND)  Serial.print("RIXN_CMD ");
-   if (m.can_id == THERMOSTAT_AMBIENT_STATUS) Serial.print("THRM_STS ");
-   if (m.can_id == THERMOSTAT_STATUS_1) Serial.print("THRM_ST1 ");
-   if (m.can_id == ROOFFAN_STATUS) Serial.print("RFFN_STS ");
-   if (m.can_id == ROOFFAN_CONTROL) Serial.print("RFFN_CTL");
-   if (m.can_id == PDM1_SHORT) Serial.print("PDM1_SHT ");
-   if (m.can_id == PDM2_SHORT) Serial.print("PDM2_SHT ");
-   if (m.can_id == THERMOSTAT_COMMAND_1) Serial.print("THRM_CTL ");
-   
-  Serial.print(m.can_id,HEX);Serial.print(" ");
-  Serial.print(m.can_dlc);Serial.print(" ");
-  for (int i = 0;i<m.can_dlc;i++)
-  {
-    if (m.data[i] < 0x10) Serial.print(" ");
-    Serial.print(m.data[i],HEX);Serial.print("   ");
-  }
-  if (bLF) Serial.println();
-}
-void resetFilters()
-{
-  handleCommand ("stop");
-  Serial.println("reset Filters");
-  nFilterOutIndex = 0;
-  nFilterOutB0Index = 0;
-  nFilterInIndex = 0;
-  parseFile ("filters.txt");
-  handleCommand ("start");
-  return;
-}
 
-//fanMode         00 auto
-//                01 always on
-void setACFanMode (byte bFanMode)
-{
-  Serial.println("AC Fan");
-  can_frame m = lastACCommand;
-  m.data[1] = (m.data[1] & 0b11001111) + (bFanMode << 4);
-  if (bVerbose) Serial.print("new fan mode: ");
-  if (bVerbose) Serial.println(m.data[1],BIN);
-  lastACCommand = m;
-  mcp2515.sendMessage(&m); 
-}
-void setACFanSpeed (byte newSpeed)
-{
-
-  Serial.println("AC Speed");
-  can_frame m = lastACCommand;
-  m.data[2] = newSpeed;
-  if (bVerbose) Serial.print("new speed: ");
-  if (bVerbose) Serial.println(m.data[2],BIN);
-  lastACCommand = m;
-  mcp2515.sendMessage(&m); 
-}
-
-void setACOperatingMode (byte newMode)
-{
-  Serial.println("AC Mode");
-  can_frame m = lastACCommand;
-  m.data[1] = (m.data[1] & 0b11110000) + newMode;
-  if (bVerbose) Serial.print("new operating mode: ");
-  if (bVerbose) Serial.println(m.data[1],BIN);
-  lastACCommand = m;
-  mcp2515.sendMessage(&m); 
-}
-void acSetTemp (float fTemp)
-{
-   cm.ac.fTargetTemp = fTemp;
-   Serial.println("AC Set Temp");
-   can_frame m = lastACCommand;
-   //convert temp to bytes;
-   fTemp = (fTemp + 273.0) / .03125;
-   
-   int nTemp = (int)fTemp;
-   byte b1 = nTemp & 0xff;
-   byte b2 = (nTemp & 0xff00) >> 8;
-   m.data[5] = b1;
-   m.data[6] = b2;
-   lastACCommand = m;
-   printCan(m);
-   mcp2515.sendMessage(&m); 
-   
-   
-}
-void acCommand (byte bFanMode,byte bOperatingMode,byte bSpeed)
-{
-
-  
-  Serial.println("AC Mode");
-  //fanMode         00 auto
-   //               01 always on
-                  
-  //operatingMode 0000b — Off
-//                0001b — Cool
-//                0010b — Heat
-//                0011b — Auto heat/Cool
-//                0100b — Fan only
-//                0101b — Aux Heat
-//                0110b — Window Defrost/Dehumidify
-
-  //fanSpeed    0-125
-  //fSetpointCool
-  //fSetPointHot
-                  
-  struct can_frame m = lastACCommand;
-  m.can_id = THERMOSTAT_COMMAND_1;
-  m.can_dlc = 8;
-  m.data[0] = 1;
-  m.data[1] = (bFanMode << 4) + bOperatingMode;
-  m.data[2] = bSpeed & 0xff;
-  
-  lastACCommand = m;
-  mcp2515.sendMessage(&m); 
-}
 
 void handleCommand (String szCommand)
 {
@@ -905,40 +737,45 @@ void handleCommand (String szCommand)
   if (szCommand.startsWith ("pressAux")) pressDigitalButton(lastPDM2inputs1to6,6,0);
   if (szCommand.startsWith ("cabinOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].fFeedback == 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
    
   }
   if (szCommand.startsWith("lightsOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].fFeedback == 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].fFeedback == 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
   }
   if (szCommand.startsWith("lightsOff"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].fFeedback > 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].fFeedback > 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
   }
   if (szCommand.startsWith("allOff"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].fFeedback > 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].fFeedback > 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].fFeedback > 0) pressDigitalButton(lastPDM1inputs1to6,7,3);
-    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].fFeedback > 0) pressDigitalButton(lastPDM2inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
+    delay(500);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
+    delay(500);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,7,3);
+    delay(500);
+    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand > 0) pressDigitalButton(lastPDM2inputs1to6,6,0);
+    delay(500);
+    if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,7,2);
     
   }
   if (szCommand.startsWith("allOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].fFeedback == 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].fFeedback == 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].fFeedback == 0) pressDigitalButton(lastPDM1inputs1to6,7,3);
-    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].fFeedback == 0) pressDigitalButton(lastPDM2inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,7,3);
+    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand == 0) pressDigitalButton(lastPDM2inputs1to6,6,0);
     
   }
 if (szCommand.startsWith("printPDM"))
   {
     for (int i = 1;i<=12;i++)
     {
-      Serial.print("PDM1 "); 
+      Serial.print("PDM1 #"); 
       Serial.print(i);
       Serial.print(" ");
       Serial.print(cm.pdm1_output[i].szName);
@@ -985,92 +822,68 @@ if (szCommand.startsWith("printPDM"))
       
     }
   }
-   /*
-    * //fanMode       00 auto
-                      01 on
-                  
-0000b — Off
-0001b — Cool
-0010b — Heat
-0011b — Auto heat/Cool
-0100b — Fan only
-0101b — Aux Heat
-0110b — Window Defrost/Dehumidify
-
-  /
-*/
+   
   if (szCommand.startsWith("verbose")) bVerbose = !bVerbose;
-  if (szCommand.startsWith("acOff")) acCommand(0,0,0);
-  if (szCommand.startsWith("acOn")) acCommand(1,1,64);
-  if (szCommand.startsWith("acModeHeat")) setACOperatingMode(0b10);
-  if (szCommand.startsWith("acFanOnly")) setACOperatingMode(0b100);
+  if (szCommand.startsWith("acOff")) cm.acCommand(0,0,0);
+  if (szCommand.startsWith("acOn")) cm.acCommand(1,1,64);
+  if (szCommand.startsWith("acModeHeat")) cm.setACOperatingMode(0b10);
+  if (szCommand.startsWith("acFanOnly")) cm.setACOperatingMode(0b100);
 
-  if (szCommand.startsWith("acFanLow")) setACFanSpeed(10);
-  if (szCommand.startsWith("acFanHigh")) setACFanSpeed(255);
+  if (szCommand.startsWith("acFanLow")) cm.setACFanSpeed(10);
+  if (szCommand.startsWith("acFanHigh")) cm.setACFanSpeed(255);
   
   
-  if (szCommand.startsWith("acAlwaysOn")) setACFanMode(1);
-  if (szCommand.startsWith("acAuto")) setACFanMode(0);
+  if (szCommand.startsWith("acAlwaysOn")) cm.setACFanMode(1);
+  if (szCommand.startsWith("acAuto")) cm.setACFanMode(0);
   
  
   
   if (szCommand.startsWith("acSetSpeed "))
   {
     int nSpeed = gaInt(szCommand,' ');
-    setACFanSpeed(nSpeed);
+    cm.setACFanSpeed(nSpeed);
   }
   if (szCommand.startsWith("acSetOperatingMode "))
   {
     int nMode = gaInt(szCommand,' ');
-    setACOperatingMode(nMode);
+    cm.setACOperatingMode(nMode);
   }
   
   if (szCommand.startsWith("acSetFanMode "))
   {
     int nMode = gaInt(szCommand,' ');
-    setACFanMode(nMode);
+    cm.setACFanMode(nMode);
   }
   if (szCommand.startsWith("acSetTemp "))
   {
     float fTemp = gaFloat(szCommand,' ');
-    acSetTemp(fTemp);
+    cm.acSetTemp(fTemp);
   }
-  
-  if (szCommand.startsWith("fadePump"))
+  if (szCommand.startsWith("awningEnable"))
   {
-    //94EF1F11 8 F8 FB  0  0  0  0 FD 83
-    //1.00  94EF1F11 8 F8 FB  0  0  0  0 FD 83 
-    //pump command: 94EF1F11 8 FD 7F 7F 7F 7F  0 7F FF
-    can_frame m;
-    m.can_id = 0x94EF1F11;
-    m.can_dlc = 8;
-    m.data[0] = 0xFD;     //command 0
-    m.data[1] = 0x7F;     //channel 4;
-    m.data[2] = 0x7F;      //
-    m.data[3] = 0x7F;     //motor mode
-    m.data[4] = 0x7F;       
-    m.data[5] = 0x7F;
-    m.data[6] = 0x7F;
-    m.data[7] = 0xff;
-  
-    for (int i = 0;i<200;i++)
-    {
-      mcp2515.sendMessage(&m);
-      delay(1);
-    }
-    delay(1000);
-    pressDigitalButton(lastPDM1inputs1to6,6,0);
+    pressDigitalButton(lastPDM1inputs7to12,6,3);
     
   }
+  if (szCommand.startsWith("awningOut"))
+  {
+    pressDigitalButton(lastPDM1inputs7to12,7,2);
+    
+    
+  }
+  if (szCommand.startsWith("awningIn"))
+  {
+    pressDigitalButton(lastPDM1inputs7to12,7,3);
+  }
   
   
   
-  if (szCommand.startsWith("openVent")) openVent();
-  if (szCommand.startsWith("closeVent")) closeVent();
+  
+  if (szCommand.startsWith("openVent")) cm.openVent();
+  if (szCommand.startsWith("closeVent")) cm.closeVent();
   if (szCommand.startsWith("setVentSpeed "))
   {
     int nSpeed = gaInt(szCommand,' ');
-    setVentSpeed(nSpeed);
+    cm.setVentSpeed(nSpeed);
   }
   
   if (szCommand.startsWith ("rf"))//Reset Filters
@@ -1206,61 +1019,9 @@ if (szCommand.startsWith("printPDM"))
   }
   
   
-  if (szCommand.startsWith("inverter="))
-  {
-    int nState = gaInt(szCommand,'=');
-    if (nState == 0)
-    {
-      Serial.println("      Turning Inverter Off");  
-    }
-    if (nState == 1)
-    {
-      Serial.println("      Turning Inverter On");  
-    }
-    return;
-  }
-  if (szCommand.startsWith("masterLight="))
-  {
-    int nState = gaInt(szCommand,'=');
-    if (nState == 0)
-    {
-      Serial.println("      Turning Master Lights Off");  
-    }
-    if (nState == 1)
-    {
-      Serial.println("      Turning Master Lights On");  
-    }
-    return;
-  }
-  if (szCommand.startsWith("masterLightLevel="))
-  {
-    int nLevel = gaInt(szCommand,'=');
-    Serial.print("      Master Light Level: ");
-    Serial.println(nLevel);
-    return;
-  }
-  if (szCommand.startsWith("cabinLight="))
-  {
-    int nState = gaInt(szCommand,'=');
-    if (nState == 0)
-    {
-      Serial.println("      Turning Cabin Lights Off");  
-    }
-    if (nState == 1)
-    {
-      Serial.println("      Turning Cabin Lights On");  
-    }
-    return;
-  }
-  if (szCommand.startsWith("cabinLightLevel="))
-  {
-    int nLevel = gaInt(szCommand,'=');
-    Serial.print("      Cabin Light Level: ");
-    Serial.println(nLevel);
-    return;
-  }
   
-  return;
+  
+  
   
   
 }
@@ -1536,7 +1297,17 @@ bool dataChanged (can_frame m)
   return false;
   
 }
-
+void resetFilters()
+{
+  handleCommand ("stop");
+  Serial.println("reset Filters");
+  nFilterOutIndex = 0;
+  nFilterOutB0Index = 0;
+  nFilterInIndex = 0;
+  parseFile ("filters.txt");
+  handleCommand ("start");
+  return;
+}
 void handleCanbus ()
 {
   static can_frame mLast;
@@ -1550,19 +1321,6 @@ void handleCanbus ()
     float t = millis() / 1000.0;
     
     
-
-    //Check for magic combination to turn verbosse on
-    if ((m.can_id == PDM2_MESSAGE) && (m.data[0] == 0xf8) && (m.data[6] == 0x08)) 
-    {
-      startVerboseTimer = millis();
-      bVerbose = true;
-    }
-    if ((bVerbose) && (millis() - startVerboseTimer > 2000)) 
-    {
-      bVerbose = false;
-      startVerboseTimer = 0;
-      
-    }
     //now filter stuff
     if (nFilterMode == 2)
     {
@@ -1580,7 +1338,7 @@ void handleCanbus ()
       if (!dataChanged (m)) return;
     }
     ////Do the stuff
-    if (bVerbose) printCan(m,false);
+    if (bVerbose) cm.printCan(m,false);
     if ((m.can_id == PDM1_MESSAGE) || (m.can_id == PDM2_MESSAGE)) 
     {
       handlePDMMessage(t,m);
@@ -1588,33 +1346,33 @@ void handleCanbus ()
     }
     if (m.can_id == RIXENS_COMMAND) 
     {
-      handleRixens(m);
+      cm.handleRixens(m);
       return;
     }
     if (m.can_id == ROOFFAN_STATUS) 
     {
-      handleRoofFanStatus(m);
+      cm.handleRoofFanStatus(m);
       return;
     }
     if (m.can_id == ROOFFAN_CONTROL) 
     {
-      handleRoofFanControl(m);
+      cm.handleRoofFanControl(m);
       return;
     }
     if (m.can_id == THERMOSTAT_AMBIENT_STATUS) 
     {
-      handleThermostatAmbientStatus(m);
+      cm.handleThermostatAmbientStatus(m);
       return;
     }
     if ((m.can_id == PDM1_COMMAND) || (m.can_id == PDM2_COMMAND))
     {
-      handlePDMCommand(m);
+      cm.handlePDMCommand(m);
       return;
     }
    
     if (m.can_id == TANK_LEVEL) 
     {
-      handleTankLevel(m);
+      cm.handleTankLevel(m);
       return;
     }
     if (m.can_id == PDM1_SHORT) 
@@ -1634,8 +1392,8 @@ void handleCanbus ()
     }
     if ((m.can_id == 0x98FECAAF) || (m.can_id == 0x99FECA58)) 
     {
-      printCan(m);
-      handleDiagnostics(m);
+      if (bVerbose) cm.printCan(m);
+      cm.handleDiagnostics(m);
       return;
     }
     
@@ -1674,377 +1432,10 @@ bool filterOutByte0 (byte b)
 }
  
 
-float bytes2DegreesC(byte b1,byte b2)
-{
-  return ((int)b1 + (int)b2 * 0xff) * 0.03125 - 273.0;
-}
 
-float byte2Float(byte b)
-{
-  float sign = 1;
-  if ((b >> 7) == 0x01) sign = -1;
-  b = b & 0x7F;
-  return ((float)b * 0.7874015748 * sign);
-}
-void handleThermostatAmbientStatus (can_frame m)
-{
-  int nInstance = m.data[0];
-  cm.fAmbientTemp = bytes2DegreesC(m.data[1],m.data[2]);
-  
-  if (bVerbose)
-  {
-    Serial.print("  AMBIENT TEMP: ");
-    Serial.println(cm.fAmbientTemp);
-  }
-  
-  /*int nOperatingMode = m.data[1] & 0xff;
-  Serial.print("operatingMode: ");Serial.print(nOperatingMode);
-  int nFanMode = (m.data[1] >> 4) & 0x03;
-  Serial.print(", fanMode: ");Serial.print(nFanMode);
-  int nScheduleMode = (m.data[1] >> 6) & 0x03;
-  Serial.print(", ScheduleMode: ");Serial.print(nScheduleMode);
-  int nFanSpeed = m.data[2];
-  Serial.print(", fanSpeed:");Serial.print(nFanSpeed);
-  float fSetPointHeat = bytes2Degrees(m.data[3],m.data[4]);
-  Serial.print(", setPoint Heat: ");Serial.print(fSetPointHeat);
-  float fSetPointCool = bytes2Degrees(m.data[5],m.data[6]);
-  Serial.print(", setPoint Cool: ");Serial.print(fSetPointCool);
-  Serial.println();
-  */
-  
-}
-void handleRoofFanStatus (can_frame m)
-{
-  
-  cm.roofFan.nSystemStatus = m.data[1] & 0x3;
-  cm.roofFan.nFanMode = (m.data[1] >> 2) & 0x03;
-  cm.roofFan.nSpeedMode = (m.data[1] >> 4) & 0x03;
-  cm.roofFan.nLight = (m.data[1] >>6) & 0x03;
-  cm.roofFan.nSpeed = m.data[2];
-  cm.roofFan.nWindDirection = m.data[3] & 0x03;
-  cm.roofFan.nDomePosition = (m.data[3] >> 2) & 0xf;
-  //cm.roofFan.fAmbientTemp = bytes2DegreesC(m.data[4],m.data[5]);
-  cm.roofFan.fSetPoint = bytes2DegreesC(m.data[6],m.data[7]);
-  
-  /*Serial.print("FAN: ");
-  if (cm.roofFan.nSystemStatus == 0x01) Serial.print("On  ");else Serial.print("Off ");
-  if (cm.roofFan.nFanMode == 0x01) Serial.print("Forced On ");else Serial.print("Auto    ");
-  if (cm.roofFan.nSpeedMode == 0x01) Serial.print("Speed: Auto ");else Serial.print("Speed: Manual ");
-  Serial.print("Speed=");Serial.print(cm.roofFan.nSpeed);Serial.print(" ");
-  Serial.print("Dome: ");Serial.print(cm.roofFan.nDomePosition);Serial.print(" ");
-  Serial.print("SetPt:");Serial.print(cm.roofFan.fSetPoint);Serial.print(" ");
-  Serial.print("Dir: ");Serial.print(cm.roofFan.nWindDirection);Serial.print(" ");//0 = out, 1 = in
-  Serial.println();
-  */
-}
 
-void openVent()
-{
-  if (bVerbose) Serial.println("opening vent");
-  can_frame m;
-  m.can_id = ROOFFAN_CONTROL;
-  m.can_dlc = 8;
-  m.data[0] = 2;
-  m.data[1] = 0b10101;//system 1, fan force on, speed mode manual
-  m.data[2] = 0;//speed 0-- turn off
-  m.data[3] = 0b01010000; //01-0100-00
-  m.data[4] = 0;      //temp
-  m.data[5] = 0;
-  m.data[6] = 0;      //setpoint
-  m.data[7] = 0;
-  mcp2515.sendMessage(&m);
-  delay(100);
-  
-}
 
-void closeVent()
-{
-  if (bVerbose) Serial.println("closing vent");
-  can_frame m;
-  m.can_id = ROOFFAN_CONTROL;
-  m.can_dlc = 8;
-  m.data[0] = 2;
-  m.data[1] = 0b10101;//system 1, fan force on, speed mode manual
-  m.data[2] = 0;//turn off
-  m.data[3] = 0b1000000;      //01-0000-00
-  m.data[4] = 0;
-  m.data[5] = 0;
-  m.data[6] = 0;
-  m.data[7] = 0;
-  mcp2515.sendMessage(&m);
-}
-void setVentSpeed (int nSpeed)
-{
-  byte bSpeed = nSpeed & 0xff;
-  Serial.print("setting speed: ");Serial.print(bSpeed);
-  
-  //RV-C p.463 ROOF_FAN_COMMAND
-  can_frame m;
-  m.can_id = ROOFFAN_CONTROL;
-  m.can_dlc = 8;
-  m.data[0] = 2;
-  m.data[1] = 0b10101;//system 1, fan force on, speed mode manual
-  m.data[2] = bSpeed;
-  //m.data[3] = 0b01010000; //01-0100-00//rain sensor on, fully open,air out
-  m.data[3] = 0b01010100; //01-0101-00//rain sensor on, "stopped",air out
- 
-  m.data[4] = 0;
-  m.data[5] = 0;
-  m.data[6] = 0;
-  m.data[7] = 0;
-  mcp2515.sendMessage(&m);
-  
-}
-void handleRoofFanControl(can_frame m)
-{
-  if (bVerbose) 
-  {
-    
-    
-    Serial.print ("Instance: ");
-    Serial.println(m.data[0]);
-    Serial.print("B1: ");Serial.println(m.data[1],BIN);
-    Serial.print("Speed: ");Serial.println(m.data[2],HEX);
-    Serial.print("b3: ");Serial.println(m.data[3],BIN);
-    Serial.print("Temp: ");Serial.println(bytes2DegreesC(m.data[4],m.data[5]));
-    Serial.print("Set: ");Serial.println(bytes2DegreesC(m.data[6],m.data[7]));
-  
-    Serial.println("Roof Fan Control");
-  }
-  
-  
-}
-void handleTankLevel(can_frame m)
-{
-  
-  if (m.data[0] == 0x00)
-  {
-    cm.nFreshTankLevel = m.data[1];
-    cm.nFreshTankDenom = m.data[2];
-    if (bVerbose) 
-    {
-      Serial.print("FRESH LEVEL: ");
-      Serial.print(cm.nFreshTankLevel);
-      Serial.print("/");
-      Serial.print(cm.nFreshTankDenom);
-    }
-  }
-  if (m.data[0] == 0x02)
-  {
-    cm.nGrayTankLevel = m.data[1];
-    cm.nGrayTankDenom = m.data[2];
-    if (bVerbose) 
-    {
-      Serial.print("GRAY LEVEL: ");
-      Serial.print(cm.nGrayTankLevel);
-      Serial.print("/");
-      Serial.print(cm.nGrayTankDenom);
-    }
-  }
-  if (bVerbose) Serial.println();
-}
-void handleRixens(can_frame m)
-{
-  
-  if (m.data[0] == 1) // set target temp anytime thermostat is controlled
-  {
-    cm.heater.fTargetTemp = ((int)m.data[1] + (int)m.data[2] * 256) / 10.0;
-    if (bVerbose) Serial.print("RIXENS SET TEMP: ");
-    if (bVerbose) Serial.print(cm.heater.fTargetTemp);
-    
-  }
-  if (m.data[0] == 2) // set target temp anytime thermostat is controlled
-  {
-    
-    if (m.data[1] == 0xff) 
-    {
-      cm.heater.bAutoMode = true;
-      if (bVerbose) Serial.print("RIXENS SET FAN SPEED: AUTO");
-    }
-    else
-    {
-      cm.heater.bAutoMode = false;
-     
-      cm.heater.nFanSpeed = ((int)m.data[1] + (int)m.data[2] * 256);
-      if (bVerbose) Serial.print("          RIXENS SET FAN SPEED: ");
-      if (bVerbose) Serial.print(cm.heater.nFanSpeed);
-    }
-  }
-  if (m.data[0] == 3)                     // Heatsource Furnace
-  {
-    
-    if (m.data[1] == 0x01) 
-    {
-      cm.heater.bFurnace = true;
-      if (bVerbose) Serial.print("RIXENS HEATSOURCE FURNACE ON");
-    }
-    else
-    {
-      cm.heater.bFurnace = false;
-      Serial.print("RIXENS HEATSOURCE FURNACE OFF");
-    }
-  }
-  if (m.data[0] == 0x06)                     // Hot Water Heater Function
-  {
-    
-    if (m.data[1] == 0x01) 
-    {
-      cm.heater.bHotWater = true;
-      if (bVerbose) Serial.print("RIXENS HOT WATER ON");
-    }
-    else
-    {
-      cm.heater.bHotWater = false;
-      if (bVerbose) Serial.print("RIXENS HOT WATER OFF");
-    }
-  }
-  if (m.data[0] == 0x0c)                     // Hot Water Heater Function
-  {
-    
-    if (bVerbose) Serial.print("???");
-    if (bVerbose) Serial.println();
-    
-  }
-  
-}
-void handleDiagnostics (can_frame m)
-{
-  
-  
-  byte s1 = m.data[0] & 0x03;
-  byte s2 = (m.data[0] >> 2) & 0x03;
-  if (bVerbose) Serial.print(" s1-2: ");
-  if ((s1 == 1) && (s2 == 1)) if (bVerbose) Serial.print("ok");
-  else
-  {
-    if (bVerbose) Serial.print(s1);
-    if (bVerbose) Serial.print(s2);
-  }
-  if (bVerbose) Serial.print(" yel: ");
-  if (bVerbose) Serial.print((m.data[0] >> 4) & 0x03);
-  if (bVerbose) Serial.print(" red: ");
-  if (bVerbose) Serial.print((m.data[0] >> 6) & 0x03);
-  if (bVerbose) Serial.print(" DSA: ");
-  if (bVerbose) Serial.print(m.data[1],HEX);
-  
-  long spn1 = m.data[2] << 11 + m.data[3] << 3 + (m.data[4] & 0xe0) >> 5;
-  long spn2 = m.data[2] << 3 + (m.data[4] & 0xe0) >> 5;
-  byte instance = m.data[3];
-   
-  if (bVerbose) Serial.print(" SPN: ");
-  if (bVerbose) Serial.print(spn1,HEX);
-  if (bVerbose) Serial.print("/");
-  if (bVerbose) Serial.print(spn2,HEX);
-  if (bVerbose) Serial.print("-");
-  if (bVerbose) Serial.print(instance,HEX);
-  if (bVerbose) Serial.print(" FMI: ");
-  if (bVerbose) Serial.print(m.data[4] & 0xf,HEX);
-  if (bVerbose) Serial.print(" OCC #");
-  if (m.data[5] & 0x7f == 0x7f) Serial.print("n/a");else Serial.print(m.data[5] & 0x7f,HEX);
-  Serial.print(" DSA_Ext ");Serial.print(m.data[6],HEX);
-  
-  if (bVerbose) Serial.println();
-  
 
-  
-}
-
-void handlePDMCommand(can_frame m)
-{
-  static bool bFirstTime = true;
-  static long startMillis = 0;
-  if (bFirstTime)
-  {
-    bFirstTime = false;
-    startMillis = millis();
-  }
-  float fDT = (millis() - startMillis) / 1000;
-  byte b0 = m.data[0] & 0x07;
-  int nPDM = 0;
-  if (m.can_id == PDM1_COMMAND) nPDM = 1;
-  if (m.can_id == PDM2_COMMAND) nPDM = 2;
-  
-  if (b0 == 0) // setup channel:
-  {
-    Serial.println("Setup Channel");
-    Serial.print(fDT);Serial.print("  ");printCan(m,true);
-    Serial.println("PDM Config");
-    Serial.println("---------");
-    Serial.print("PDM: ");Serial.println(nPDM);
-    byte bChannel = m.data[1] & 0xf;
-    Serial.print("Channel: ");
-    Serial.print (bChannel,HEX);Serial.print(" ");
-    if (nPDM == 1) Serial.println(cm.pdm1_output[bChannel].szName);
-    if (nPDM == 2) Serial.println(cm.pdm2_output[bChannel].szName);
-    byte bSoftStartStepSize = m.data[2];
-    if (nPDM == 1) cm.pdm1_output[bChannel].bSoftStartStepSize = bSoftStartStepSize;
-    if (nPDM == 2) cm.pdm2_output[bChannel].bSoftStartStepSize = bSoftStartStepSize;
-    Serial.print ("Soft Start Pct: (0xFF=disabled)");Serial.println(bSoftStartStepSize,HEX);
-    
-   
-    byte bMotorOrLamp = m.data[3];
-    Serial.print("Motor Lamp (0=lamp, 1=motor): ");Serial.println(bMotorOrLamp,HEX);
-    if (nPDM == 1) cm.pdm1_output[bChannel].bMotorOrLamp = bMotorOrLamp;
-    if (nPDM == 2) cm.pdm2_output[bChannel].bMotorOrLamp = bMotorOrLamp;
-    
-    byte bLossOfCommunication = m.data[4];
-    Serial.print("Loss of Comm: ");Serial.println(bLossOfCommunication,HEX);
-    if (nPDM == 1) cm.pdm1_output[bChannel].bLossOfCommunication = bLossOfCommunication;
-    if (nPDM == 2) cm.pdm2_output[bChannel].bLossOfCommunication = bLossOfCommunication;
-    
-    
-    byte bByte7 = m.data[6];
-    if (bVerbose) Serial.print("POR Comm-Enable/Type/Braking: ");
-    if (bVerbose) Serial.println(bByte7,BIN);
-    if (nPDM == 1) cm.pdm1_output[bChannel].bByte7 = bByte7;
-    if (nPDM == 2) cm.pdm2_output[bChannel].bByte7 = bByte7;
-    
-    
-    byte bByte8 = m.data[7];
-    if (bVerbose) 
-    {
-      Serial.print("LSC/CAL/Response: ");
-      Serial.println(bByte8,BIN);
-    }
-    if (nPDM == 1) cm.pdm1_output[bChannel].bByte8 = bByte8;
-    if (nPDM == 2) cm.pdm2_output[bChannel].bByte8 = bByte8;
-    return;
-  }
-  if (b0 == 0x04)
-  {
-    if (nPDM == 1) for (int i = 1;i<=6;i++) cm.pdm1_output[i].bCommand = m.data[i];
-    if (nPDM == 2) for (int i = 1;i<=6;i++) cm.pdm2_output[i].bCommand = m.data[i];
-    if (bVerbose) Serial.print("0x04 1-6: ");
-    if (bVerbose) Serial.println(m.data[7],BIN);
-    return;
-  }
-  if (b0 == 0x05)
-  {
-    if (nPDM == 1) for (int i = 7;i<=12;i++) cm.pdm1_output[i].bCommand = m.data[i-6];
-    if (nPDM == 2) for (int i = 7;i<=12;i++) cm.pdm2_output[i].bCommand = m.data[i-6];
-    if (bVerbose) Serial.print("0x05 7-12: ");
-    if (bVerbose) Serial.println(m.data[7],BIN);
-    return;
-    
-  }
-  Serial.print("UNKNOWN PDM COMMAND B0-- ");
-  Serial.println(m.data[0],HEX);
-  /*
-  Serial.print(" PDM");Serial.print(nPDM);Serial.print("_CMD  (");
-  Serial.print(m.data[0] & 0x07,HEX);Serial.print(")");
-  if (b0 == 0x04) Serial.print(" Out 1- 6: ");
-  if (b0 == 0x05) Serial.print(" Out 7-12: ");
-  for (int i = 1;i<7;i++)
-  {
-    Serial.print((int)byte2Float(m.data[i]));
-    if (m.data[i] < 100) Serial.print(" ");
-    if (m.data[i] < 10) Serial.print(" ");
-    Serial.print("   ");
-  }
-  */
-
-  //Serial.println();
-}
 
 float tenBitAnalog(can_frame m,int channelNumber)
 {
@@ -2246,10 +1637,10 @@ void pressDigitalButton (can_frame mLast,int nDataIndex,int nByteNum)
   if (mLast.can_dlc == 0)
   {
     Serial.println("ERROR-- no old data");
-    printCan(mLast);
+    cm.printCan(mLast);
     return;
   }
-  printCan(mLast);
+  cm.printCan(mLast);
   if (bVerbose)
   {
     Serial.print("nDataIndex = ");Serial.println(nDataIndex);
@@ -2271,7 +1662,7 @@ void pressDigitalButton (can_frame mLast,int nDataIndex,int nByteNum)
   if (bVerbose) Serial.println(orMask,BIN);
   
   m.data[nDataIndex] = (m.data[nDataIndex] & andMask) | orMask;
-  printCan(m);
+  cm.printCan(m);
   mcp2515.sendMessage(&m);
   delay(250);
   
@@ -2281,6 +1672,75 @@ void pressDigitalButton (can_frame mLast,int nDataIndex,int nByteNum)
   
 }
 
+void handleDoubleTap(can_frame m)
+{
+  static long tap1mSec = millis();
+  static int tapState = 0;
+  if (m.can_id != PDM2_MESSAGE) return;
+  if (m.data[0] != 0xf0) return;
+  byte b7 = m.data[7];
+  
+  if ((millis() - tap1mSec) > 10000) 
+  {
+    tapState = 0;
+  }
+  if (tapState == 0)
+  {
+    if ((b7 & 0b00110000) == 0x20)
+    {
+      Serial.println("TAP");
+      tap1mSec = millis();
+      tapState = 1;               //single press;
+    }
+    
+  }
+  if (tapState == 1)
+  {
+    if ((b7 & 0b00110000) == 0x00)
+    {
+      Serial.println("Release");
+      tap1mSec = millis();
+      tapState = 2;               //single press;
+    }
+  }
+  if (tapState == 2)
+  {
+    if ((b7 & 0b00110000) == 0x20)
+    {
+      Serial.println("Second Tap");
+      tapState = 3; 
+    }
+  }
+  if (tapState == 3)
+  {
+    if ((b7 & 0b00110000) == 0x20)
+    {
+      
+      Serial.println("Second Release");
+      tapState = 4;
+      
+    }
+    
+    
+  }
+  if (tapState == 4)
+  {
+    Serial.println("Waiting");
+    if ((millis() - tap1mSec) > 5000)
+    {
+      cm.acCommand(0,0,0);
+      delay(500);
+      cm.closeVent();
+      delay(500);
+      handleCommand("allOff");
+      handleCommand("awningEnable");
+      handleCommand("awningIn");
+      
+      tapState = 0;
+    }
+  }
+  
+}
 void handleMessageF0F8 (float t,can_frame m)//This is ambient voltage and digital inputs
 {
   
@@ -2308,6 +1768,8 @@ void handleMessageF0F8 (float t,can_frame m)//This is ambient voltage and digita
   }
   if (m.can_id == PDM2_MESSAGE)
   {
+    handleDoubleTap(m);
+    
     if (bVerbose) Serial.print("PDM2 ");
     if (m.data[0] == 0xf0) 
     {
@@ -2443,31 +1905,17 @@ void setup()
     
     delay(100);   //important...
     displayMessage("Running...");
-    cm.init();
+    cm.init(&mcp2515);
     pinMode(LED,OUTPUT);
     setupCanbus();
 
     //Setup old Inputs
     can_frame zeroPDM;
-    zeroPDM.can_id = 0;
-    zeroPDM.can_dlc = 0;
-    for (int i = 0;i<8;i++) zeroPDM.data[i] = 0;
+    
     lastPDM1inputs1to6  = zeroPDM;
     lastPDM1inputs7to12 =zeroPDM;
     lastPDM2inputs1to6  = zeroPDM;
     lastPDM2inputs7to12 = zeroPDM;
-    lastACCommand = zeroPDM;
-    lastACCommand.can_id = THERMOSTAT_COMMAND_1;
-    lastACCommand.can_dlc = 8;      //off 1  0 64 64 25 99 25  0
-    lastACCommand.data[0] = 1;
-    lastACCommand.data[1] = 0;
-    lastACCommand.data[2] = 0x64;
-    lastACCommand.data[3] = 0x64;
-    lastACCommand.data[4] = 0x25;
-    lastACCommand.data[5] = 0x99;
-    lastACCommand.data[6] = 0x25;
-    lastACCommand.data[7] = 0;
-    
     
     
     

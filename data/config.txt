@@ -1,5 +1,5 @@
 //addFile ssid.txt
-quickSSID OTIS,OTdont4get
+quickSSID SSID,password
 addFile filters.txt
 start
 

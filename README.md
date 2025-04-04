@@ -24,7 +24,10 @@ Step 4.  Upload the data folder to your ESP-32.  Make sure your SSID and passwor
 
 The system invokes a mini-dns.  It is called cm.local.
 PARTS:
-https://www.amazon.com/dp/B0DB86YJ8D?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1
+https://www.amazon.com/dp/B0DB86YJ8D
+https://www.amazon.com/dp/B0B2NWK1QX
+https://www.amazon.com/dp/B0BVH43P9L
+
 
 
 

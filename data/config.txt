@@ -1,8 +1,7 @@
-quickSSID (SSID),(password)
+//addFile ssid.txt
+quickSSID OTIS,OTdont4get
 addFile filters.txt
 start
-//Hints.  Beware of spaces, especially in the password
-
 
 
 

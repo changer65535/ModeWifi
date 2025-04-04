@@ -14,15 +14,15 @@
 //filterOut 99FFE258	//THERMOSTAT_STATUS_1 [DONE]
 //filterOut 99FEA758	//ROOF_FAN_STATUS_1 [DONE]
 
-filterOut 788		//Ripens [DONE]
-filterOut 78B		//Rixens Readback
-filterOut 78A		//Rixens Readback
-filterOut 724		//Rixens
-filterOut 725		//Rixens
-filterOut 726		//Rixens
-filterOut 728		//Rixens
-filterOut 98FECAAF	//Diagnostics
-filterOut 99FECA58	//Diagnostics
+//filterOut 788		//Ripens [DONE]
+//filterOut 78B		//Rixens Readback
+//filterOut 78A		//Rixens Readback
+//filterOut 724		//Rixens
+//filterOut 725		//Rixens
+//filterOut 726		//Rixens
+//filterOut 728		//Rixens
+//filterOut 98FECAAF	//Diagnostics
+//filterOut 99FECA58	//Diagnostics
 
 
 //filterIn 94EF1E11				//Strange 4 byte thing

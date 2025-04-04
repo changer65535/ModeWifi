@@ -18,29 +18,21 @@
 
 
 	<style>
-	body{
+	body
+	{
 		font-family: "Trebuchet MS", sans-serif;
 		margin: 10px;
 	}
-	.demoHeaders {
-		margin-top: 2em;
-	}
-	#dialog-link {
-		padding: .4em 1em .4em 20px;
-		text-decoration: none;
-		position: relative;
-	}
-	#dialog-link span.ui-icon {
-		margin: 0 5px 0 0;
-		position: absolute;
-		left: .2em;
-		top: 50%;
-		margin-top: -8px;
-	}
-	#icons {
-		margin: 0;
-		padding: 0;
-	}
+
+
+	 .ui-checkboxradio-icon
+	 {
+		 display: none !important;
+	 }
+
+
+
+
 	#icons li {
 		margin: 2px;
 		position: relative;
@@ -49,10 +41,7 @@
 		float: left;
 		list-style: none;
 	}
-	#icons span.ui-icon {
-		float: left;
-		margin: 0 4px;
-	}
+
 	.fakewindowcontain .ui-widget-overlay {
 		position: absolute;
 	}
@@ -91,14 +80,14 @@
 		<fieldset><legend>Water: </legend>
 			<button class="ui-button ui-widget ui-corner-all" id="button-pump">Pump</button>
 			<button class="ui-button ui-widget ui-corner-all" id="button-circ">Circ</button>
-
 		</fieldset>
-		<br>
+
 		<fieldset><legend>Awning: </legend>
 			<button class="ui-button ui-widget ui-corner-all" id="button-awning-arm">Arm</button>
-
-
+			<button class="ui-button ui-widget ui-corner-all" id="button-awning-in">In</button>
+			<button class="ui-button ui-widget ui-corner-all" id="button-awning-out">Out</button>
 		</fieldset>
+
 		<fieldset><legend>Aux/Starlink: </legend>
 			<button class="ui-button ui-widget ui-corner-all" id="button-aux">Aux</button>
 		</fieldset>
@@ -111,61 +100,22 @@
 			$( "#button-lights-allOff" ).button().on( "click", function() {sendCommand ("lightsOff")});
 			$( "#button-pump" ).button().on( "click", function() {sendCommand ("pressPump")});
 			$( "#button-circ" ).button().on( "click", function() {sendCommand ("pressCirc")});
-			//$( "#button-drain" ).button().on( "click", function() {sendCommand ("pressDrain")});
 			$( "#button-aux" ).button().on( "click", function() {sendCommand ("pressAux")});
+
+			$( "#button-awning-arm" ).button().on( "click", function() {sendCommand ("awningEnable")});
+			$( "#button-awning-in" ).button().on( "click", function() {sendCommand ("awningIn")});
+			$( "#button-awning-out" ).button().on( "click", function() {sendCommand ("awningOut")});
 
 		</script>
 
 
 	</div>
 
-	<!================================================= LIGHTS ==================================================-->
-
-	<h3>Lights</h3>
-	<div>
-		<div class="lightClass">
-			<label for="checkbox-master">Master</label><input type="checkbox" name="checkbox-master" id="checkbox-master">
-			<div id="slider-master" class="lightSliderClass"></div>
-		</div>
-		<div class = "lightClass">
-			<label for="checkbox-cabin">Cabin</label><input type="checkbox" name="checkbox-cabin" id="checkbox-cabin">
-			<div id="slider-cabin" class="lightSliderClass"></div>
-		</div>
-		<div class = "lightClass">
-			<label for="checkbox-reading">Reading</label><input type="checkbox" name="checkbox-reading" id="checkbox-reading"><br>
-			<div id="slider-reading" class="lightSliderClass"></div>
-		</div>
-		<div class = "lightClass">
-			<label for="checkbox-cargo">Cargo</label><input type="checkbox" name="checkbox-cargo" id="checkbox-cargo"><br>
-			<div id="slider-cargo" class="lightSliderClass"></div>
-		</div>
-		<div class = "lightClass">
-			<label for="checkbox-awning">Awning</label><input type="checkbox" name="checkbox-awning" id="checkbox-awning"><br>
-			<div id="slider-awning" class="lightSliderClass"></div>
-		</div>
 
 
 
-		<style>
-			.lightClass
-			{
-				padding: 10px;
-				display:inline-flex;
-				width:100%;
 
-			}
-			.lightSliderClass
-			{
-				display:inline;
-				width:100%;
-				height:10px%;
-				margin-left: 50px;
 
-			}
-
-		</style>
-
-	</div>
 
 	<!================================================= MISC ==================================================-->
 	<h3>Tank Levels</h3>
@@ -293,8 +243,8 @@
 
 	</div>
 	<!-- SETTINGS -->
-	<h3>Settings</h3>
-	<div>Settings Stuff Here</div>
+	<h3>Extra Credit</h3>
+	<div>Cool stuff goes here</div>
 
 </div>
 
@@ -451,7 +401,7 @@
 		});
 		//AC
 		let spinner1 = $("#acTargetTemp").spinner();
-		spinner1.spinner("value", 00);
+		spinner1.spinner("value", 0);
 		$(spinner1).spinner ({
 			change:function ()
 			{
@@ -461,7 +411,7 @@
 			}
 		});
 		let spinner2 = $("#heatTargetTemp").spinner();
-		spinner2.spinner("value", 00);
+		spinner2.spinner("value", 0);
 		//Heat
 
 		$("#slider-fan").slider({

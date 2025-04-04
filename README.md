@@ -23,7 +23,8 @@ Step 3.  Attach to split canbus cable.  I used the connection between Canbus1 an
 Step 4.  Upload the data folder to your ESP-32.  Make sure your SSID and password are in the config,txt file.  
 
 The system invokes a mini-dns.  It is called cm.local.
-
+PARTS:
+https://www.amazon.com/dp/B0DB86YJ8D?ref=ppx_yo2ov_dt_b_fed_asin_title&th=1
 
 
 

@@ -4,13 +4,13 @@ Adding Wifi to a Storyteller Campervan
 
 04/04/25:  Added double tap to turn off everything possible.  Turns off pumps, lights, ac and fan.  Then retracts awning and turns off awning lihts
 
-***Don't start messing with this stuff unless you know what you aer doing.  You could brick your van, and Storyteller will not help you.  You could also void any warrantee you may have.***
+***Don't start messing with this stuff unless you know what you're doing.  You could brick your van, and Storyteller will not help you.  You could also void any warrantee you may have.***
 ***There-- you have been warned!***
 What it can do:
-1.  A/C
-2.  Vent Fan
+1.  Control A/C
+2.  Control Vent Fan
 3.  Push Toggle Buttons
-4.  Tank Status
+4.  Read Tank Status
 
 What it cannot do/control:
 1.  Rixens

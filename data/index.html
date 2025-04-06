@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="apple-mobile-web-app-capable" content="yes">
-	<meta name="apple-mobile-web-app-title" content="Lunch">
+	<meta name="apple-mobile-web-app-title" content="ComMode">
 	<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 	<meta http-equiv="Pragma" content="no-cache" />
 	<meta http-equiv="Expires" content="0" />
@@ -160,11 +160,10 @@
 	<div>
 		<fieldset>
 			<legend>Mode:</legend>
-			<label for="radio-modeOff">Off</label><input type="radio" name="radio-mode" id="radio-modeOff"/>
-			<label for="radio-modeCool">Cool</label><input type="radio" name="radio-mode" id="radio-modeCool"/>
-			<label for="radio-modeHeat">Heat</label><input type="radio" name="radio-mode" id="radio-modeHeat"/>
-			<label for="radio-modeFanOnly">Fan Only</label><input type="radio" name="radio-mode" id="radio-modeFanOnly"/>
-
+			<button class="ui-button ui-widget ui-corner-all" id="radio-modeOff">Off</button>
+			<button class="ui-button ui-widget ui-corner-all" id="radio-modeCool">Cool</button>
+			<button class="ui-button ui-widget ui-corner-all" id="radio-modeHeat">Heat</button>
+			<button class="ui-button ui-widget ui-corner-all" id="radio-radio-modeFanOnly">Fan Only</button>
 
 		</fieldset>
 		<fieldSet>
@@ -212,22 +211,25 @@
 			<label for="radio-ventFanOn">On</label><input type="radio" name="radio-ventFan" id="radio-ventFanOn"/>
 			<br>
 			Speed:
-			<div id="slider-fan" ></div>
+			<div id="slider-vent"></div>
+
 		</fieldset>
 
 
 
 		<fieldset>
 			<legend>Airflow (out only):</legend>
+			<!--
 			<label for="radio-ventAirflowIn">In</label><input type="radio" name="radio-ventAirflow" id="radio-ventAirflowIn"/>
 			<label for="radio-ventAirflowOut">Out</label><input type="radio" name="radio-ventAirflow" id="radio-ventAirflowOut"/>
+			-->
 		</fieldset>
 		<fieldset>
 			<legend>Vent:</legend>
 			<label for="radio-ventOpen">Open</label><input type="radio" name="radio-vent" id="radio-ventOpen"/>
 			<label for="radio-ventClose">Closed</label><input type="radio" name="radio-vent" id="radio-ventClose"/>
 			<br>
-			<div id="slider-vent"></div>
+
 
 
 		</fieldset>
@@ -252,6 +254,8 @@
 <script>
 	//////////////////////////////////JAVASCRIPT////////////////////////////////////
 	var heater;
+	var bFirstUpdate = true;
+	var bACSpinnerActive = false;
 	function merge_options(obj1,obj2)
 	{
 		var obj3 = {};
@@ -292,17 +296,25 @@
 	{
 		sendPost("getAllInfo",{},function (s)
 		{
+
 			heater = s.heater;
 			ac = s.acInfo;
 			tankInfo = s.tankInfo;
 			$("#heaterFanLegend").text("Fan: " + heater.nFanSpeed);
-			$("#heatInteriorTemp").text("Interior Temp: " + s.miscInfo.fAmbientTemp.toFixed(1));
+			$("#heatInteriorTemp").text("Interior Temp: " + Math.round(s.miscInfo.fAmbientTemp.toFixed(1)));
 			$("#heatTargetTemp" ).spinner( "value", heater.fTargetTemp);
-			$("#acInteriorTemp").text("Interior Temp: " + s.miscInfo.fAmbientTemp.toFixed(1) + " / Target:" + ac.fTargetTemp.toFixed(1));
+			$("#acInteriorTemp").text("Interior Temp: " + Math.round(s.miscInfo.fAmbientTemp.toFixed(1)) + " / Target:" + Math.round(ac.fTargetTemp.toFixed(1)));
 
 			$("#progressbar-freshWaterLevel").progressbar({value: 100 * tankInfo.nFreshTankLevel / 24});
 			$("#progressbar-grayWaterLevel").progressbar({value: 100 * tankInfo.nGrayTankLevel / 24});
 			$("#slider-vent").progressbar({value: s.miscInfo.nVentSpeed});
+			if (bFirstUpdate == true)
+			{
+				bFirstUpdate = false;
+				$("#acTargetTemp").spinner("value",Math.round(ac.fTargetTemp.toFixed(0)));
+				bACSpinnerActive = true;
+
+			}
 
 		});
 	}
@@ -401,13 +413,13 @@
 		});
 		//AC
 		let spinner1 = $("#acTargetTemp").spinner();
-		spinner1.spinner("value", 0);
+		spinner1.spinner("value", 42);
 		$(spinner1).spinner ({
 			change:function ()
 			{
-				let tempC = FtoC(this.value).toFixed(1);
+				let tempC = Math.round(FtoC(this.value).toFixed(1));
 
-				sendCommand("acSetTemp " + tempC);
+				if (bACSpinnerActive) sendCommand("acSetTemp " + tempC);
 			}
 		});
 		let spinner2 = $("#heatTargetTemp").spinner();
@@ -462,7 +474,7 @@
 	$(document).ready(function()
 	{
 		initScreen();
-		setInterval(getHeaterInfo, 5000);
+		setInterval(getHeaterInfo, 2000);  //2 seconds
 	});
 </script>
 </body>

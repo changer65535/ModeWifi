@@ -4,16 +4,13 @@
 //filterOut 94EF111E	//PDM 1 Message
 //filterOut 94EF111F	//PDM 2 Message
 //filterOut 99FFB7AF	//Tank Status [DONE]
-
 //filterOut 94E9111F	//strange 4 byte
 //filterOut 94E9111E	//strange 4 byte
 //filterOut 99FECA58	//diagnostics [DONE]
 //filterOut 99FF9C58	//THERMOSTAT_AMBIENT_STATUS
 //filterOut 98FECAAF	//diagnostics [DONE]
-
 //filterOut 99FFE258	//THERMOSTAT_STATUS_1 [DONE]
 //filterOut 99FEA758	//ROOF_FAN_STATUS_1 [DONE]
-
 //filterOut 788		//Ripens [DONE]
 //filterOut 78B		//Rixens Readback
 //filterOut 78A		//Rixens Readback
@@ -25,10 +22,10 @@
 //filterOut 99FECA58	//Diagnostics
 
 
-//filterIn 94EF1E11				//Strange 4 byte thing
-//filterIn 94EF1F11				//Strange 4 byte thing
+filterIn 94E9111F				//Strange 4 byte thing
+filterIn 94E9111E				//Strange 4 byte thing
 
-filterMode 2			//Filter Out
+filterMode 2			//Filter 1 = FILTER IN (EXCLUDE ALL ELSE), 2 = FILTER OUT
 
 
 

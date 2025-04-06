@@ -33,16 +33,15 @@ bool bVerbose = false;
 
 /*
  * System On messages....
-98EEFF1F 8  2  0 44  E  0  0  0 40 
-98EEFF1E 8  A  0 44  E  0  0  0 40 
-98EAFFFE 3  0 EE  0 
-98EEFF1F 8  2  0 44  E  0  0  0 40 
-98EEFF1E 8  A  0 44  E  0  0  0 40 
+98EEFF1F 8  2  0 44  E  0  0  0 40        //EEFF=Address Claiming
+98EEFF1E 8  A  0 44  E  0  0  0 40        //EEFF--Address Claiming
+98EAFFFE 3  0 EE  0                       //Global request for DGNs
+98EEFF1F 8  2  0 44  E  0  0  0 40        EEFF=Address Claiming
+98EEFF1E 8  A  0 44  E  0  0  0 40        /EEFF=Address Claiming
 98EEFFF2 8 80 13 DE  9  0 A0 A0 C0 
-99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
+99FEF903 8  1 10  0 F9 24  A 25  0        //ACCommand
 
-0.00  94EF1E11 8 F8 F1  0  0  0  0 FC FF 
-PDM Config
+0.00  94EF1E11 8 F8 F1  0  0  0  0 FC FF    PDM Config
 ---------
 PDM: 1
 Channel: 1 SOLAR_BACKUP
@@ -53,8 +52,7 @@ POR Comm-Enable/Type/Braking: 11111100
 LSC/CAL/Response: 11111111
 99FEF903 8  1 10  0 F9 24  A 25  0 
 
-0.00  94EF1E11 8 F8 F3  0  0  0  0 FC FF 
-PDM Config
+0.00  94EF1E11 8 F8 F3  0  0  0  0 FC FF      PDM Config
 ---------
 PDM: 1
 Channel: 3 READING_LIGHT
@@ -64,9 +62,8 @@ Loss of Comm: 0
 POR Comm-Enable/Type/Braking: 11111100
 LSC/CAL/Response: 11111111
 
-0.00  94EF1E11 8 F8 F7  0  0  0  0 FC FF 
-PDM Config
----------
+0.00  94EF1E11 8 F8 F7  0  0  0  0 FC FF    PDM Config
+---------PDM
 PDM: 1
 Channel: 7 AWNING_ENABLE
 Soft Start Pct: (0xFF=disabled)0
@@ -152,33 +149,33 @@ Motor Lamp (0=lamp, 1=motor): 0
 Loss of Comm: 0
 POR Comm-Enable/Type/Braking: 11111101
 LSC/CAL/Response: 11111111
-98EE00AF 8 34  0 80  F  0  0  0 80 
+98EE00AF 8 34  0 80  F  0  0  0 80 //Address Claim
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-98EE00C1 8 16 37 23  F  0  0  0  0 
-99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-99FECAC1 8  5 C1 FF FF FF FF FF  F 
-99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-99FEA7C1 8  2 15  0 14 28 22  0  0 
+98EE00C1 8 16 37 23  F  0  0  0  0  //Address Claimed  SN#16, SN #37 Man Code F.  Vent FanFan
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-99FECAC1 8  5 C1 FF FF FF FF FF  F 
-99FEA7C1 8  2 15  0 14 38 22  0  0 
+99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
+99FECAC1 8  5 C1 FF FF FF FF FF  F //Status Room Fan
+99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
+99FEA7C1 8  2 15  0 14 28 22  0  0 //Status Room Fan
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-99FF9CC1 8  1 40 25 FF FF FF FF FF 
+99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
+99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
+99FECAC1 8  5 C1 FF FF FF FF FF  F //Status Room Fan
+99FEA7C1 8  2 15  0 14 38 22  0  0 //ROOF_FAN_STATUS_1
+99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
+99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
+99FF9CC1 8  1 40 25 FF FF FF FF FF //THERMOSTAT_AMBIENT_STATUS_1
 98EE0058 8 16 37 23  F  0  0  0  0 //ACCommand
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-98E80358 8  0 FF FF FF FF F9 FE  1 
+98E80358 8  0 FF FF FF FF F9 FE  1  //Acq.  Instance 3.  Acq code 0.  Air Conditioning
 99FEF903 8  1 10  0 F9 24  A 25  0 //ACCommand
-98E80358 8  0 FF FF FF FF F9 FE  1 
+98E80358 8  0 FF FF FF FF F9 FE  1  //Acq.  Instance 3.  Acq code 0.  Air Conditioning
 
 */
 
@@ -749,6 +746,8 @@ void handleCommand (String szCommand)
   {
     if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
     if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,7,3);
+    
   }
   if (szCommand.startsWith("allOff"))
   {
@@ -761,6 +760,10 @@ void handleCommand (String szCommand)
     if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand > 0) pressDigitalButton(lastPDM2inputs1to6,6,0);
     delay(500);
     if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,7,2);
+    delay(500);
+    if (cm.pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) pressDigitalButton(lastPDM2inputs1to6,7,3);
+    delay(500);
+    
     
   }
   if (szCommand.startsWith("allOn"))
@@ -1344,6 +1347,11 @@ void handleCanbus ()
       handlePDMMessage(t,m);
       return;
     }
+    if ((m.can_id == PDM1_SHORT) || (m.can_id == PDM2_SHORT))
+    {
+      handlePDMMessage(t,m);
+      return;
+    }
     if (m.can_id == RIXENS_COMMAND) 
     {
       cm.handleRixens(m);
@@ -1375,16 +1383,8 @@ void handleCanbus ()
       cm.handleTankLevel(m);
       return;
     }
-    if (m.can_id == PDM1_SHORT) 
-    {
-      handlePDMMessage(t,m);
-      return;
-    }
-    if (m.can_id == PDM2_SHORT) 
-    {
-      handlePDMMessage(t,m);
-      return;
-    }
+    
+    
     if (m.can_id == THERMOSTAT_STATUS_1)
     {
       //THERMOSTAT_STATUS_1
@@ -1726,7 +1726,7 @@ void handleDoubleTap(can_frame m)
   if (tapState == 4)
   {
     Serial.println("Waiting");
-    if ((millis() - tap1mSec) > 5000)
+    if ((millis() - tap1mSec) > 1000)
     {
       cm.acCommand(0,0,0);
       delay(500);

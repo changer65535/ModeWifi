@@ -81,6 +81,17 @@ void CM::init(MCP2515* thisPtr)
   strcpy(pdm2_output[10].szName,"12V_SPEAKER");
   strcpy(pdm2_output[11].szName,"SINK_PUMP");
   strcpy(pdm2_output[12].szName,"AUX_POWER");
+
+  //Roof Fan
+  roofFan.nSystemStatus = 0;
+  roofFan.nFanMode = 0;
+  roofFan.nSpeedMode = 0;
+  roofFan.nLight = 0;
+  roofFan.nSpeed = 0;
+  roofFan.nWindDirection = 0;
+  roofFan.nDomePosition = 0;
+  roofFan.fSetPoint = 0;
+  roofFan.fAmbientTemp = 0;
 }
 
 
@@ -469,7 +480,17 @@ void CM::handlePDMCommand(can_frame m)
   int nPDM = 0;
   if (m.can_id == PDM1_COMMAND) nPDM = 1;
   if (m.can_id == PDM2_COMMAND) nPDM = 2;
-  
+
+  ////////////FOR PDM SHORT////////////////
+  if ((m.can_id == PDM1_SHORT) || (m.can_id == PDM2_SHORT))
+  {
+    if ((m.data[2] != 0) || (m.data[3] != 0))
+    {
+      Serial.println("******** FOUND STRANGE BYTE !=0************");
+      printCan(m);
+      
+    }
+  }
   if (b0 == 0) // setup channel:
   {
     Serial.println("Setup Channel");
@@ -549,7 +570,7 @@ void CM::handlePDMCommand(can_frame m)
   }
   */
 
-  //Serial.println();
+  if (bVerbose) Serial.println();
 }
 //////////////ROOF FAN
 void CM::handleRoofFanStatus (can_frame m)
@@ -584,7 +605,7 @@ void CM::openVent()
   m.can_dlc = 8;
   m.data[0] = 2;
   m.data[1] = 0b10101;//system 1, fan force on, speed mode manual
-  m.data[2] = 0;//speed 0-- turn off
+  m.data[2] = roofFan.nSpeed;
   m.data[3] = 0b01010000; //01-0100-00
   m.data[4] = 0;      //temp
   m.data[5] = 0;
@@ -649,7 +670,6 @@ void CM::handleRoofFanControl(can_frame m)
   
     Serial.println("Roof Fan Control");
   }
-  
   
 }
 

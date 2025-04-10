@@ -1,4 +1,6 @@
+
 #include <WebServer.h>
+
 #include <Uri.h>
 #include <HTTP_Method.h>
 #include "cm.h"
@@ -9,13 +11,66 @@
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include <mcp2515.h>
+#include <HTTPClient.h>
 
 
 CM cm;
 long lDataTimer = millis();
 char dataBuffer[160];
 bool bVerbose = false;
+int nPDMChannel = 0;
+int nPDMToPrint = 0;
+const char* hostURL = "http://130.211.161.177/cv/cvAjax.php";
+const char* szSecret = "dfgeartdsfcvbfgg53564fgfgh";
+    
 
+void sendPost (char *szCommand)
+{
+  StaticJsonDocument<200> json;
+  char postData[128];
+  sprintf(postData,"command=%s",szCommand);
+  
+  Serial.println(postData);
+  HTTPClient http;   
+  http.begin(hostURL);  //Specify destination for HTTP request
+  http.addHeader("Content-Type", "application/x-www-form-urlencoded");             //Specify content-type header
+  int httpResponseCode = http.POST(postData);   //Send the actual POST request
+  if (httpResponseCode > 0) 
+  {   
+ 
+        String res = http.getString();
+        Serial.println(httpResponseCode);
+        Serial.print("Response: ");
+        Serial.println(res);
+        DeserializationError error = deserializeJson(json, doc);
+ 
+  }
+  else Serial.println("Error on sending HTTP POST");
+
+  http.end();  //Free resources
+  
+}
+void setWebVariable (const char *szVariableName,int nValue)
+{
+  char szPostData[256];
+  sprintf(szPostData,"setVariable&secret=%s&varName=%s&varValue=%d",szSecret,szVariableName,nValue);
+  sendPost(szPostData);
+}
+void setWebVariable (const char *szVariableName,float fValue)
+{
+  char szFloat[16];
+  dtostrf(fValue,4,1,szFloat);
+  char szPostData[256];
+  sprintf(szPostData,"setVariable&secret=%s&varName=%s&varValue=%s",szSecret,szVariableName,szFloat);
+  sendPost(szPostData);
+}
+void logData(int nSensorID, const char* szDataType, const char* szDataValue)
+{
+  Serial.println("---Sending Log Data---");
+  char szPostData[128];
+  sprintf(szPostData,"command=logData&sensorID=%i&dataType=%s&dataValue=%s",nSensorID,szDataType,szDataValue);
+  sendPost(szPostData);
+}
 //Board Adafruit Feather ESP32 V2 March 19,2025
 
 
@@ -582,6 +637,7 @@ void setupServer()
   server.on("/cm.dum",HTTP_POST,  handleAJAX);
   
   server.onNotFound(handleNotFound);
+  
   server.begin();
   if (bAccessPointMode)
   {
@@ -840,7 +896,20 @@ if (szCommand.startsWith("printPDM"))
   if (szCommand.startsWith("acAuto")) cm.setACFanMode(0);
   
  
-  
+  if (szCommand.startsWith ("printAmps1 "))
+  {
+    nPDMChannel = gaInt(szCommand,' ');
+    nPDMToPrint = 1;
+    
+    
+  }
+  if (szCommand.startsWith ("printAmps2 "))
+  {
+    nPDMChannel = gaInt(szCommand,' ');
+    nPDMToPrint = 2;
+    
+    
+  }
   if (szCommand.startsWith("acSetSpeed "))
   {
     int nSpeed = gaInt(szCommand,' ');
@@ -887,6 +956,11 @@ if (szCommand.startsWith("printPDM"))
   {
     int nSpeed = gaInt(szCommand,' ');
     cm.setVentSpeed(nSpeed);
+  }
+  if (szCommand.startsWith("setVentDir "))
+  {
+    int nDir = gaInt(szCommand,' ');
+    cm.setVentDirection(nDir);
   }
   
   if (szCommand.startsWith ("rf"))//Reset Filters
@@ -1017,6 +1091,9 @@ if (szCommand.startsWith("printPDM"))
   }
   if (szCommand == "stop")
   {
+    nPDMChannel = 0;
+    nPDMToPrint = 0;
+    
     bReadBus = false;
     return;
   }
@@ -1131,8 +1208,7 @@ void setupConfig()
 
 void handleDir ()
 {
-    StaticJsonBuffer<1600> jsonBuffer;
-    JsonArray& array = jsonBuffer.createArray();
+    
     File root = SPIFFS.open("/");
     String sendStr = "";
 
@@ -1145,13 +1221,12 @@ void handleDir ()
     
       String fileName = file.name();
       Serial.println(fileName);
-      //if (fileName.endsWith(".txt")) array.add(fileName);
+      
       file = root.openNextFile();
       server.sendContent(fileName + "\r\n");
     }
 
-    //array.printTo(sendStr);
-    //server.sendContent(sendStr);
+    
 }
 void printServerArgs ()
 {
@@ -1600,7 +1675,7 @@ void handleMessage133 (float t,can_frame m)
   if (m.can_id == PDM1_MESSAGE)
   {
     if (bVerbose) Serial.println("Feedback PDM1 7-12");
-    for (int i = 7;i<= 12;i++) cm.pdm2_output[i].fFeedback = feedbackAmps(m,i);
+    for (int i = 7;i<= 12;i++) cm.pdm1_output[i].fFeedback = feedbackAmps(m,i);
     
   }
   if (m.can_id == PDM2_MESSAGE)
@@ -1791,9 +1866,12 @@ void handleMessageF0F8 (float t,can_frame m)//This is ambient voltage and digita
     }
     
   }
-  
-  
 
+    
+  if (nPDMToPrint == 1) Serial.println(cm.pdm1_output[nPDMChannel].fFeedback);
+  if (nPDMToPrint == 2) Serial.println(cm.pdm2_output[nPDMChannel].fFeedback);
+  
+    
   float fTemp = (m.data[4] & 0b11) * 256.0 + m.data[5];
   cm.fAmbientVoltage = fTemp * 5.0 / 1024.0;
   if (bVerbose) Serial.print(" ");
@@ -1878,8 +1956,7 @@ void setup()
 {
     
     
-    unsigned long long strtoull(register const char * __restrict__ nptr, 
-                            char ** __restrict__ endptr, int base);
+    
     Serial.begin(115200);
     delay(10);
     while (!Serial); // wait for serial attach
@@ -1918,24 +1995,28 @@ void setup()
     lastPDM2inputs7to12 = zeroPDM;
     
     
-    
+    setWebVariable("currentTemperature",(float)69.2);
     //parseRaw();
     
 }
 
-
+void handleUploadData()
+{
+  static long lastUpload = millis();
+  if (millis() - lastUpload >5000)
+  {
+    lastUpload = millis();
+    setWebVariable("currentTemperature",cm.fAmbientTemp);
+  }
+}
 void loop()
 {
+ 
    handleSerial();
    server.handleClient();
    handleCanbus();
-   if (millis() - lDataTimer > 5000)
-   {
-      //lDataTimer = millis();
-      //cm.serializeData(dataBuffer);
-      //Serial.print(dataBuffer);
-      //Serial.println();
-   }
+   handleUploadData();
+   
    ///////////////SET LED TO BLINK IF ACCESS POINT MODE IS TRUE
    if (apMode == true)
    {

@@ -171,6 +171,8 @@ class CM
   void setVentSpeed (int nSpeed);
   void closeVent();
   void openVent();
+  void setVentDirection (bool bDir);  //0 = out, 1 = in
+  
 
   
 void handleThermostatAmbientStatus (can_frame m);

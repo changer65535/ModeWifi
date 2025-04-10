@@ -597,16 +597,24 @@ void CM::handleRoofFanStatus (can_frame m)
   */
 }
 
-void CM::openVent()
+void CM::openVent() //vent position doesnt work.  alwayds full open or 
+//0b0000 = closed
+//0b0001 = 1/4
+//0b0010 = 1/2
+//0b0011 = 3/4
+//0b0100 = 4/4
+//0b0101 = stop
 {
   if (bVerbose) Serial.println("opening vent");
   can_frame m;
+  bool bDir = roofFan.nWindDirection & 1;
   m.can_id = ROOFFAN_CONTROL;
   m.can_dlc = 8;
   m.data[0] = 2;
   m.data[1] = 0b10101;//system 1, fan force on, speed mode manual
   m.data[2] = roofFan.nSpeed;
-  m.data[3] = 0b01010000; //01-0100-00
+  m.data[3] = 0b01010000 + bDir ; //01-0100-00  rain sensor, open, air out
+  //m.data[3] = (m.data[3] & 0b11000011) + (bDomePosition << 2);
   m.data[4] = 0;      //temp
   m.data[5] = 0;
   m.data[6] = 0;      //setpoint
@@ -620,23 +628,25 @@ void CM::closeVent()
 {
   if (bVerbose) Serial.println("closing vent");
   can_frame m;
+  byte bDir = roofFan.nWindDirection & 1;
   m.can_id = ROOFFAN_CONTROL;
   m.can_dlc = 8;
   m.data[0] = 2;
   m.data[1] = 0b10101;//system 1, fan force on, speed mode manual
   m.data[2] = 0;//turn off
-  m.data[3] = 0b1000000;      //01-0000-00
+  m.data[3] = 0b1000000 +  + bDir;      //01-0000-00
   m.data[4] = 0;
   m.data[5] = 0;
   m.data[6] = 0;
   m.data[7] = 0;
   mPtr->sendMessage(&m);
 }
-void CM::setVentSpeed (int nSpeed)
+void CM::setVentSpeed (int nSpeed)   //0 - 127
 {
   byte bSpeed = nSpeed & 0xff;
+  byte bDir = roofFan.nWindDirection & 1;
   Serial.print("setting speed: ");Serial.print(bSpeed);
-  
+  roofFan.nSpeed = bSpeed;
   //RV-C p.463 ROOF_FAN_COMMAND
   can_frame m;
   m.can_id = ROOFFAN_CONTROL;
@@ -645,7 +655,30 @@ void CM::setVentSpeed (int nSpeed)
   m.data[1] = 0b10101;//system 1, fan force on, speed mode manual
   m.data[2] = bSpeed;
   //m.data[3] = 0b01010000; //01-0100-00//rain sensor on, fully open,air out
-  m.data[3] = 0b01010100; //01-0101-00//rain sensor on, "stopped",air out
+  m.data[3] = 0b01010100 + bDir; //01-0101-00//rain sensor on, "stopped",air out
+ 
+  m.data[4] = 0;
+  m.data[5] = 0;
+  m.data[6] = 0;
+  m.data[7] = 0;
+  mPtr->sendMessage(&m);
+  
+}
+
+void CM::setVentDirection (bool bDir)   //0 = out, 1 = in
+{
+ 
+  Serial.print("setting direction: ");Serial.print(bDir);
+  
+  //RV-C p.463 ROOF_FAN_COMMAND
+  roofFan.nWindDirection = bDir;
+  can_frame m;
+  m.can_id = ROOFFAN_CONTROL;
+  m.can_dlc = 8;
+  m.data[0] = 2;
+  m.data[1] = 0b10101;//system 1, fan force on, speed mode manual
+  m.data[2] = roofFan.nSpeed;
+  m.data[3] = 0b01010100 + (bDir & 0b1); //01-0101-00//rain sensor on, "stopped",air in(1) out(0)
  
   m.data[4] = 0;
   m.data[5] = 0;

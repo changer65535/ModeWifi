@@ -1,9 +1,8 @@
-#ifndef __CM__
+  #ifndef __CM__
 #define __CM__
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <mcp2515.h>
-//Use version 5, not version 6
+#include <ArduinoJson.h> //Use version 6, not version 7
 
 #define THERMOSTAT_COMMAND_1 0x99FEF903
 #define PDM1_COMMAND      0x94ef1e11
@@ -62,12 +61,7 @@
 class CM
 {
   public:
-  enum ACFanModeEnum
-  {
-    _LOW = 0,
-    _HIGH = 1,
-    _AUTO = 2
-  };
+   
 
   struct PdmDigitalOutput
   {
@@ -99,11 +93,12 @@ class CM
   {
     bool bCompressor;
     bool bFan;
-    ACFanModeEnum fanMode;
-    bool bMagicClimate;
     float fTargetTemp;//stored as C
-    byte lastFanMode;
-    byte lastOperatingMode;
+    byte fanMode;
+    byte operatingMode;
+    byte fanSpeed;
+    word setpointHeat;
+    word setpointCool;
     
   }ac;
   PdmDigitalOutput pdm1_output[13];//to accomidate 1-12 inclusive.  Total of 13
@@ -154,6 +149,7 @@ class CM
   ///DIAGNOSTICS
   void handleDiagnostics (can_frame m);
   ////AC COMMANDS
+  void handleThermostatStatus(can_frame m);
   void setACFanSpeed (byte newSpeed);
   void acCommand (byte bFanMode,byte bOperatingMode,byte bSpeed);
   void setACFanMode (byte bFanMode);

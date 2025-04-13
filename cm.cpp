@@ -13,11 +13,14 @@ void CM::init(MCP2515* thisPtr)
   //AC
   ac.bCompressor = false;
   ac.bFan = false;
-  ac.fanMode = _AUTO;
-  ac.bMagicClimate = false;
+  ac.fanMode = 0;
+  
   ac.fTargetTemp = 21;
-  ac.lastFanMode = 0;
-  ac.lastOperatingMode = 0;
+  ac.fanMode = 0;
+  ac.operatingMode = 0;
+  ac.fanSpeed = 0;
+  ac.setpointHeat = 30;
+  ac.setpointCool = 20;
 
   zeroPDM.can_id = 0;
   zeroPDM.can_dlc = 0;
@@ -122,42 +125,65 @@ void CM::data2Json(char *buffer,char *varName,float f)
 
 void CM::getHeaterInfo(char *buffer)
 {
+  StaticJsonDocument<256> doc;
+  doc["bFanOn"] = heater.bFanOn;
+  doc["nFanSpeed"] = heater.nFanSpeed;
+  doc["bAirFlowOut"] = heater.bAirFlowOut;
+  doc["bAutoMode"] = heater.bAutoMode;
+  doc["fTargetTemp"] = cToF(heater.fTargetTemp);
+  serializeJson (doc,buffer,250);
+  //char sz1[32];data2Json(sz1,"bFanOn",heater.bFanOn);
+  //char sz2[32];data2Json(sz2,"nFanSpeed",heater.nFanSpeed);
+  //char sz3[32];data2Json(sz3,"bAirFlowOut",heater.bAirFlowOut);
+  //char sz4[32];data2Json(sz4,"bAutoMode",heater.bAutoMode);
+  //char sz5[32];data2Json(sz5,"fTargetTemp",cToF(heater.fTargetTemp));
   
-  char sz1[32];data2Json(sz1,"bFanOn",heater.bFanOn);
-  char sz2[32];data2Json(sz2,"nFanSpeed",heater.nFanSpeed);
-  char sz3[32];data2Json(sz3,"bAirFlowOut",heater.bAirFlowOut);
-  char sz4[32];data2Json(sz4,"bAutoMode",heater.bAutoMode);
-  char sz5[32];data2Json(sz5,"fTargetTemp",cToF(heater.fTargetTemp));
-  
-  sprintf(buffer,"{%s,%s,%s,%s,%s}",sz1,sz2,sz3,sz4,sz5);
+  //sprintf(buffer,"{%s,%s,%s,%s,%s}",sz1,sz2,sz3,sz4,sz5);
   
 }
 
 
 void CM::getACInfo(char *buffer)
 {
-  char sz1[32];data2Json(sz1,"bCompressor",ac.bCompressor);
-  char sz2[32];data2Json(sz2,"bFan",ac.bFan);
-  char sz3[32];data2Json(sz3,"fanMode",ac.fanMode);
-  char sz4[32];data2Json(sz4,"bMagicClimate",ac.bMagicClimate);
-  char sz5[32];data2Json(sz5,"fTargetTemp",cToF(ac.fTargetTemp));
+  StaticJsonDocument<256> doc;
+  doc["bCompressor"] = ac.bCompressor;
+  doc["bFan"] = ac.bFan;
+  doc["fanMode"] = ac.fanMode;
+  doc["fTargetTemp"] = cToF(ac.fTargetTemp);
+  serializeJson (doc,buffer,128);
   
-  sprintf(buffer,"{%s,%s,%s,%s,%s}",sz1,sz2,sz3,sz4,sz5);
+  
+  //char sz1[32];data2Json(sz1,"bCompressor",ac.bCompressor);
+  //char sz2[32];data2Json(sz2,"bFan",ac.bFan);
+  //char sz3[32];data2Json(sz3,"fanMode",ac.fanMode);
+  //char sz5[32];data2Json(sz5,"fTargetTemp",cToF(ac.fTargetTemp));
+  
+  //sprintf(buffer,"{%s,%s,%s,%s,%s}",sz1,sz2,sz3,sz4,sz5);
   
 }
 void CM::getTankInfo(char *buffer)
 {
-  char sz1[32];data2Json(sz1,"nFreshTankLevel",nFreshTankLevel);
-  char sz2[32];data2Json(sz2,"nGrayTankLevel",nGrayTankLevel);
-  sprintf(buffer,"{%s,%s}",sz1,sz2);
+  StaticJsonDocument<128> doc;
+  doc["nFreshTankLevel"] = nFreshTankLevel;
+  doc["nGrayTankLevel"] = nGrayTankLevel;
+  serializeJson (doc,buffer,64);
+  
+  //char sz1[32];data2Json(sz1,"nFreshTankLevel",nFreshTankLevel);
+  //char sz2[32];data2Json(sz2,"nGrayTankLevel",nGrayTankLevel);
+  //sprintf(buffer,"{%s,%s}",sz1,sz2);
 }
 
 void CM::getMiscInfo(char *buffer)
 {
-  char sz1[32];data2Json(sz1,"fAmbientTemp",cToF(fAmbientTemp));
-  char sz2[32];data2Json(sz2,"nVentSpeed",roofFan.nSpeed);
+  StaticJsonDocument<128> doc;
   
-  sprintf(buffer,"{%s,%s}",sz1,sz2);
+  doc["fAmbientTemp"] = cToF(fAmbientTemp);
+  doc["nVentSpeed"] = roofFan.nSpeed;
+  serializeJson (doc,buffer,64);
+  //char sz1[32];data2Json(sz1,"fAmbientTemp",cToF(fAmbientTemp));
+  //char sz2[32];data2Json(sz2,"nVentSpeed",roofFan.nSpeed);
+  
+  //sprintf(buffer,"{%s,%s}",sz1,sz2);
  
 }
 
@@ -279,7 +305,16 @@ void CM::handleDiagnostics (can_frame m)
   
 }
 ////AC Controls
-
+void CM::handleThermostatStatus(can_frame m)
+{
+  ac.operatingMode = m.data[1] & 0xf;
+  ac.fanMode = (m.data[1] >> 4) & 0x3;
+  ac.fanSpeed = m.data[2];
+  ac.setpointHeat = m.data[3] << 8 + m.data[4];
+  ac.setpointHeat = m.data[5] << 8 + m.data[6];
+  
+  
+}
 void CM::setACFanSpeed (byte newSpeed)
 {
 
@@ -575,6 +610,11 @@ void CM::handlePDMCommand(can_frame m)
 //////////////ROOF FAN
 void CM::handleRoofFanStatus (can_frame m)
 {
+  //dome position 0 = closed
+  //                1 = 1/4
+  //                2 = 1/2
+  //                3 = 3/4
+  //                4 = open
   
   roofFan.nSystemStatus = m.data[1] & 0x3;
   roofFan.nFanMode = (m.data[1] >> 2) & 0x03;
@@ -583,6 +623,8 @@ void CM::handleRoofFanStatus (can_frame m)
   roofFan.nSpeed = m.data[2];
   roofFan.nWindDirection = m.data[3] & 0x03;
   roofFan.nDomePosition = (m.data[3] >> 2) & 0xf;
+
+  
   roofFan.fSetPoint = bytes2DegreesC(m.data[6],m.data[7]);
   
   /*Serial.print("FAN: ");

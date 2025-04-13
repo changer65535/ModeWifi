@@ -21,7 +21,7 @@ bool bVerbose = false;
 int nPDMChannel = 0;
 int nPDMToPrint = 0;
 const char* hostURL = "http://130.211.161.177/cv/cvAjax.php";
-const char* szSecret = "dfgeartdsfcvbfgg53564fgfgh";
+const char* szSecret = "<SECRET GOES HERE>";
     
 
 void sendPost (char *szCommand)

@@ -18,11 +18,29 @@ CM cm;
 long lDataTimer = millis();
 char dataBuffer[160];
 bool bVerbose = false;
+bool bWebVerbose = true;
+bool bUploadDataToWeb = false;
 int nPDMChannel = 0;
 int nPDMToPrint = 0;
 const char* hostURL = "http://130.211.161.177/cv/cvAjax.php";
-const char* szSecret = "<SECRET GOES HERE>";
+const char* szSecret = "dfgeartdsfcvbfgg53564fgfgh";
     
+
+
+void setWebVariable (const char *szVariableName,int nValue)
+{
+  char szPostData[256];
+  sprintf(szPostData,"setVariable&secret=%s&varName=%s&varValue=%d",szSecret,szVariableName,nValue);
+  sendPost(szPostData);
+}
+void setWebVariable (const char *szVariableName,float fValue)
+{
+  char szFloat[16];
+  dtostrf(fValue,4,1,szFloat);
+  char szPostData[256];
+  sprintf(szPostData,"setVariable&secret=%s&varName=%s&varValue=%s",szSecret,szVariableName,szFloat);
+  sendPost(szPostData);
+}
 
 void sendPost (char *szCommand)
 {
@@ -37,12 +55,27 @@ void sendPost (char *szCommand)
   int httpResponseCode = http.POST(postData);   //Send the actual POST request
   if (httpResponseCode > 0) 
   {   
- 
+        
         String res = http.getString();
-        Serial.println(httpResponseCode);
-        Serial.print("Response: ");
-        Serial.println(res);
-        DeserializationError error = deserializeJson(json, doc);
+        //for (int i = 0;i<res.length();i++) Serial.println((byte)res[i]);
+        //Serial.println(res.substring(0,1));
+        res = res.substring(3);
+        
+        if (bWebVerbose) 
+        {
+          Serial.println(httpResponseCode);
+          Serial.print("Response: ");
+          Serial.println(res);
+          DeserializationError error = deserializeJson(json, res);
+          Serial.print("Error: ");
+          Serial.println(error.c_str());
+          Serial.println(json["command"].as<const char*>());
+        }
+        
+        
+        handleCommand(json["command"]);
+        
+        
  
   }
   else Serial.println("Error on sending HTTP POST");
@@ -50,19 +83,63 @@ void sendPost (char *szCommand)
   http.end();  //Free resources
   
 }
-void setWebVariable (const char *szVariableName,int nValue)
+void postCurrentState()
 {
-  char szPostData[256];
-  sprintf(szPostData,"setVariable&secret=%s&varName=%s&varValue=%d",szSecret,szVariableName,nValue);
-  sendPost(szPostData);
-}
-void setWebVariable (const char *szVariableName,float fValue)
-{
-  char szFloat[16];
-  dtostrf(fValue,4,1,szFloat);
-  char szPostData[256];
-  sprintf(szPostData,"setVariable&secret=%s&varName=%s&varValue=%s",szSecret,szVariableName,szFloat);
-  sendPost(szPostData);
+  if (!bUploadDataToWeb) return;
+  StaticJsonDocument<1024> doc;
+  doc["secret"] = szSecret;
+  doc["temp"] = cm.fAmbientTemp;
+  doc["acSetpointCool"] = cm.ac.fSetpointCool;
+  doc["nDomePosition"] = cm.roofFan.nDomePosition;
+  doc["nRoofFanSpeed"] = cm.roofFan.nSpeed;
+  doc["acOperatingMode"] = cm.ac.operatingMode;
+  doc["acFanMode"] = cm.ac.fanMode;
+  doc["acFanSpeed"] = cm.ac.fanSpeed;
+  doc["freshTankLevel"] = cm.nFreshTankLevel;
+  doc["freshTankDenom"] = cm.nFreshTankDenom;
+  doc["grayTankLevel"] = cm.nGrayTankLevel;
+  doc["grayTankDenom"] = cm.nGrayTankDenom;
+  
+  for (int i = 0;i<=12;i++) doc["pdm1"][i] = (byte) (cm.pdm1_output[i].fFeedback * 8 + 0.01);
+  for (int i = 0;i<=12;i++) doc["pdm2"][i] = (byte) (cm.pdm2_output[i].fFeedback * 8 + 0.01);
+  
+  
+  
+  
+  
+  HTTPClient http;   
+  http.begin(hostURL);
+  http.addHeader("Content-Type", "application/json");
+  String json;
+  serializeJson(doc, json);
+  if (bWebVerbose) Serial.println(json);
+  int httpResponseCode = http.POST(json);
+  if (httpResponseCode > 0) 
+  {   
+        
+        String res = http.getString();
+        res = res.substring(3);
+        //Serial.println(res);
+        if (bWebVerbose) Serial.println(httpResponseCode);
+        if (bWebVerbose) Serial.print("Response: ");
+        if (bWebVerbose) Serial.println(res);
+        DeserializationError error = deserializeJson(doc, res);
+        
+        if (bWebVerbose) Serial.print("Error: ");
+        if (bWebVerbose) Serial.println(error.c_str());
+        if (bWebVerbose) Serial.println(doc["command"].as<const char*>());
+        handleCommand(doc["command"]);
+        
+        
+ 
+  }
+  else Serial.println("Error on sending HTTP POST");
+
+  http.end();  //Free resources
+  
+  
+  
+  
 }
 void logData(int nSensorID, const char* szDataType, const char* szDataValue)
 {
@@ -901,7 +978,7 @@ if (szCommand.startsWith("printPDM"))
     nPDMChannel = gaInt(szCommand,' ');
     nPDMToPrint = 1;
     
-    
+   
   }
   if (szCommand.startsWith ("printAmps2 "))
   {
@@ -1084,6 +1161,8 @@ if (szCommand.startsWith("printPDM"))
     }
     
   }
+  if (szCommand.startsWith ("webOn")) bUploadDataToWeb = true;
+  if (szCommand.startsWith ("webOff")) bUploadDataToWeb = false;
   if (szCommand == "start")
   {
     bReadBus = true;
@@ -1230,7 +1309,7 @@ void handleDir ()
 }
 void printServerArgs ()
 {
-  Serial.print("Total Args: ");
+  Serial.print("Ajax Total Args: ");
   Serial.println(server.args());
   for (uint8_t i=0; i<server.args(); i++)
   {
@@ -1243,7 +1322,7 @@ void handleAJAX()
 {
 
   bNeverConnected = false;//we have connected now!
-  Serial.println("AJAX!  ");
+  
   printServerArgs();
   
   String szCommand = server.arg("command");
@@ -1462,7 +1541,7 @@ void handleCanbus ()
     
     if (m.can_id == THERMOSTAT_STATUS_1)
     {
-      //THERMOSTAT_STATUS_1
+      cm.handleThermostatStatus(m);
       return;
     }
     if ((m.can_id == 0x98FECAAF) || (m.can_id == 0x99FECA58)) 
@@ -2006,7 +2085,8 @@ void handleUploadData()
   if (millis() - lastUpload >5000)
   {
     lastUpload = millis();
-    setWebVariable("currentTemperature",cm.fAmbientTemp);
+    //setWebVariable("currentTemperature",cm.fAmbientTemp);
+    postCurrentState();
   }
 }
 void loop()

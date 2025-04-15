@@ -15,12 +15,13 @@ void CM::init(MCP2515* thisPtr)
   ac.bFan = false;
   ac.fanMode = 0;
   
-  ac.fTargetTemp = 21;
+  
   ac.fanMode = 0;
   ac.operatingMode = 0;
   ac.fanSpeed = 0;
   ac.setpointHeat = 30;
   ac.setpointCool = 20;
+  ac.fSetpointCool = 20.0;
 
   zeroPDM.can_id = 0;
   zeroPDM.can_dlc = 0;
@@ -149,14 +150,11 @@ void CM::getACInfo(char *buffer)
   doc["bCompressor"] = ac.bCompressor;
   doc["bFan"] = ac.bFan;
   doc["fanMode"] = ac.fanMode;
-  doc["fTargetTemp"] = cToF(ac.fTargetTemp);
+  doc["setpointCool"] = ac.fSetpointCool;
   serializeJson (doc,buffer,128);
   
   
-  //char sz1[32];data2Json(sz1,"bCompressor",ac.bCompressor);
-  //char sz2[32];data2Json(sz2,"bFan",ac.bFan);
-  //char sz3[32];data2Json(sz3,"fanMode",ac.fanMode);
-  //char sz5[32];data2Json(sz5,"fTargetTemp",cToF(ac.fTargetTemp));
+  
   
   //sprintf(buffer,"{%s,%s,%s,%s,%s}",sz1,sz2,sz3,sz4,sz5);
   
@@ -202,10 +200,7 @@ void CM::getAllInfo(char *buffer)
 }
 
 
-float CM::bytes2DegreesC(byte b1,byte b2)
-{
-  return ((int)b1 + (int)b2 * 0xff) * 0.03125 - 273.0;
-}
+
 
 float CM::byte2Float(byte b)
 {
@@ -304,6 +299,11 @@ void CM::handleDiagnostics (can_frame m)
 
   
 }
+float CM::bytes2DegreesC(byte b1,byte b2)
+{
+  return ((int)b1 + (int)b2 * 0xff) * 0.03125 - 273.0;
+}
+
 ////AC Controls
 void CM::handleThermostatStatus(can_frame m)
 {
@@ -311,7 +311,9 @@ void CM::handleThermostatStatus(can_frame m)
   ac.fanMode = (m.data[1] >> 4) & 0x3;
   ac.fanSpeed = m.data[2];
   ac.setpointHeat = m.data[3] << 8 + m.data[4];
-  ac.setpointHeat = m.data[5] << 8 + m.data[6];
+  ac.setpointCool = m.data[5] << 8 + m.data[6];
+  
+  ac.fSetpointCool = bytes2DegreesC(m.data[5],m.data[6]);
   
   
 }
@@ -387,7 +389,7 @@ void CM::setACOperatingMode (byte newMode)
 }
 void CM::acSetTemp (float fTemp)
 {
-   ac.fTargetTemp = fTemp;
+    
    Serial.println("AC Set Temp");
    can_frame m = lastACCommand;
    //convert temp to bytes;
@@ -622,7 +624,7 @@ void CM::handleRoofFanStatus (can_frame m)
   roofFan.nLight = (m.data[1] >>6) & 0x03;
   roofFan.nSpeed = m.data[2];
   roofFan.nWindDirection = m.data[3] & 0x03;
-  roofFan.nDomePosition = (m.data[3] >> 2) & 0xf;
+  roofFan.nDomePosition = (m.data[3] >> 2) & 0xf;// 0 = closed, 1 = 1/4 2 = 1/2, 3 = 3/4, 4 = totally open
 
   
   roofFan.fSetPoint = bytes2DegreesC(m.data[6],m.data[7]);
@@ -693,11 +695,11 @@ void CM::setVentSpeed (int nSpeed)   //0 - 127
   can_frame m;
   m.can_id = ROOFFAN_CONTROL;
   m.can_dlc = 8;
-  m.data[0] = 2;
+  m.data[0] = 2;    //instance is always 2
   m.data[1] = 0b10101;//system 1, fan force on, speed mode manual
   m.data[2] = bSpeed;
-  //m.data[3] = 0b01010000; //01-0100-00//rain sensor on, fully open,air out
-  m.data[3] = 0b01010100 + bDir; //01-0101-00//rain sensor on, "stopped",air out
+  if (roofFan.nDomePosition == 0) m.data[3] = 0b01010000 + bDir;   //01-0100-00//open the dome if the fan is off, so the fan doesn't push against a closed dome
+  else m.data[3] = 0b01010100 + bDir; //01-0101-00//rain sensor on, "stopped",air out
  
   m.data[4] = 0;
   m.data[5] = 0;

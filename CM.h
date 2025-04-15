@@ -93,10 +93,10 @@ class CM
   {
     bool bCompressor;
     bool bFan;
-    float fTargetTemp;//stored as C
     byte fanMode;
     byte operatingMode;
     byte fanSpeed;
+    float fSetpointCool;
     word setpointHeat;
     word setpointCool;
     

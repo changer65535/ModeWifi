@@ -42,118 +42,124 @@ https://www.amazon.com/dp/B0718T232Z
 ![9859B1A8-ED90-4E91-A5DC-019881EF6B41_1_105_c](https://github.com/user-attachments/assets/c38c6dc8-7039-4bed-9ab6-0a4ef97f4efc)
 ![0BE04399-0B7E-4827-828C-AA42BEBAC04E_1_105_c](https://github.com/user-attachments/assets/866c1593-9f9a-4545-80b3-02fb4a69ca2c)
 
-***CURRENT COMMANDS***
+#CURRENT COMMANDS#
 
+##WiFi Commands##
   
-  if ((szCommand.startsWith("password ") || (szCommand.startsWith("wifi "))))
-  if (szCommand.startsWith ("addFile "))
-  if (szCommand == "printFilters")
+  password 
+  addFile
+  printFilters")
   
-  //BUTTONS
+  ##BUTTONS##
   
-  if (szCommand.startsWith ("pressCargo"))
+  pressCargo"))
   
-  if (szCommand.startsWith ("pressCabin")) 
+  pressCabin")) 
   
-  if (szCommand.startsWith ("pressAwning")) 
+  pressAwning")) 
   
-  if (szCommand.startsWith ("pressCirc")) 
+  pressCirc")) 
   
-  if (szCommand.startsWith ("pressPump")) 
+  pressPump")) 
   
-  if (szCommand.startsWith ("pressDrain")) 
+  pressDrain")) 
   
-  if (szCommand.startsWith ("pressAux")) 
+  pressAux")) 
   
-  if (szCommand.startsWith ("cabinOn"))
+  cabinOn"))
   
-  if (szCommand.startsWith("lightsOn"))
+  lightsOn"))
   
-  if (szCommand.startsWith("lightsOff"))
+  lightsOff"))
   
-  if (szCommand == "allOff")
+  allOff")
   
-  if (szCommand.startsWith("allOffXAux")) 
+  allOffXAux")) 
   
-  if (szCommand.startsWith("allOn"))
+  allOn"))
   
-  if (szCommand.startsWith("printPDM"))
+  printPDM"))
   
-  if (szCommand.startsWith("verbose")) 
+  verbose")) 
   
-  if (szCommand == "blink") cm.nBlinkState = 1;
-  
-  if (szCommand.startsWith("acOff")) cm.acCommand(0,0,0);
-  
-  if (szCommand.startsWith("acOn")) cm.acCommand(1,1,64);
-  
-  if (szCommand.startsWith("acModeHeat")) cm.setACOperatingMode(0b10);
-  
-  if (szCommand.startsWith("acFanOnly")) cm.setACOperatingMode(0b100);
-  
+  blink") 
 
-  if (szCommand.startsWith("acFanLow")) cm.setACFanSpeed(10);
+  ###AC COMMANDS###
   
-  if (szCommand.startsWith("acFanHigh")) cm.setACFanSpeed(255);
+  acOff")) cm.acCommand(0,0,0);
   
-  if (szCommand.startsWith("acAlwaysOn")) cm.setACFanMode(1);
+  acOn")) cm.acCommand(1,1,64);
   
-  if (szCommand.startsWith("acAuto")) cm.setACFanMode(0);
+  acModeHeat")) cm.setACOperatingMode(0b10);
   
-  if (szCommand.startsWith ("printAmps1 "))
+  acFanOnly")) cm.setACOperatingMode(0b100);
+
+  acFanLow")) cm.setACFanSpeed(10);
   
-  if (szCommand.startsWith ("printAmps2 "))
+  acFanHigh")) cm.setACFanSpeed(255);
   
-  if (szCommand.startsWith("acSetSpeed "))
+  acAlwaysOn")) cm.setACFanMode(1);
   
-  if (szCommand.startsWith("acSetOperatingMode "))
+  acAuto")) cm.setACFanMode(0);
+
+  acSetSpeed "))
+
+  acSetOperatingMode "))
+
+  acSetFanMode "))
   
-  if (szCommand.startsWith("acSetFanMode "))
+  acSetTemp "))// in C
   
-  if (szCommand.startsWith("acSetTemp "))// in C
+  ###Power Commands###
+  printAmps1 "))
   
-  if (szCommand.startsWith("awningEnable"))
+  printAmps2 "))
   
-  if (szCommand.startsWith("awningOut"))
+  ###Awning Commands###
+  awningEnable"))
   
-  if (szCommand.startsWith("awningIn"))
+  awningOut"))
   
-  if (szCommand.startsWith("openVent"))
+  awningIn"))
   
-  if (szCommand.startsWith("closeVent")) 
   
-  if (szCommand.startsWith("setVentSpeed "))
+  ###Vent Commands###
+  openVent"))
   
-  if (szCommand.startsWith("setVentDir "))
+  closeVent")) 
   
-  if (szCommand.startsWith ("rf"))//Reset Filters
+  setVentSpeed "))
   
-  if (szCommand.startsWith("filterOut "))
+  setVentDir "))
   
-  if (szCommand.startsWith("filterIn "))
+  rf"))//Reset Filters
   
-  if (szCommand.startsWith("filterMode "))
+  filterOut "))
   
-  if (szCommand.startsWith("clearFilters"))
+  filterIn "))
   
-  if (szCommand.startsWith("changeMask "))
+  filterMode "))
   
-  if (szCommand.startsWith("filterOutB0"))
+  clearFilters"))
   
-  if (szCommand.startsWith("filterInB0"))
+  changeMask "))
   
-  if (szCommand.startsWith("showChangeOnly"))
+  filterOutB0"))
   
-  if (szCommand.startsWith("parseRaw"))
+  filterInB0"))
   
-  if (szCommand.startsWith("reset"))
+  showChangeOnly"))
   
-  if (szCommand.startsWith ("quickSSID "))
+  parseRaw"))
   
-  if (szCommand.startsWith("wifi "))
+  reset"))
   
-  if (szCommand.startsWith ("webOn")) 
-  if (szCommand.startsWith ("webOff"))
-  if (szCommand == "start"
-  if (szCommand == "stop")
+  quickSSID "))
+  
+  wifi "))
+  
+  webOn")) 
+  webOff"))
+  start"
+  stop")
   

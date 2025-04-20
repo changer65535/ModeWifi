@@ -43,8 +43,7 @@ https://www.amazon.com/dp/B0718T232Z
 ![0BE04399-0B7E-4827-828C-AA42BEBAC04E_1_105_c](https://github.com/user-attachments/assets/866c1593-9f9a-4545-80b3-02fb4a69ca2c)
 
 ***CURRENT COMMANDS***
- //Serial.println("Handling Command Now");
-  if (szCommand != "") Serial.print("   HANDLE COMMAND: ");
+
   
   if ((szCommand.startsWith("password ") || (szCommand.startsWith("wifi "))))
   if (szCommand.startsWith ("addFile "))

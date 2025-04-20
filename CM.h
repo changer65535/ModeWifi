@@ -11,7 +11,59 @@
 #define PDM1_MESSAGE      0x94EF111E
 #define PDM2_MESSAGE      0x94EF111F
 #define TANK_LEVEL        0x99FFB7AF
-#define RIXENS_COMMAND    0x788
+#define ACK_CODE          0x98E80358
+#define RIXENS_COMMAND            0x788
+#define RIXENS_RETURN1            0x78A
+#define RIXENS_RETURN2            0x78B
+#define RIXENS_RETURN3            0x724
+#define RIXENS_RETURN4            0x725
+#define RIXENS_GLYCOLVOLTAGE      0x726
+#define RIXENS_RETURN6            0x728
+
+
+/*
+ * 0x788 is Rixens CanBus ID
+ * b[0] is command
+ * if 1: set target temperature in celsius * 10 from b[1] and b[2] * 256
+ * if 2: set blower speed as b[1] 0-100
+ *       also if b[1] is 0xff fan will be auto
+ * 
+ * if 3: if b[1] = 1, heat source is furnace if b[0] is 0, turn off
+ * if 4: if b[1] = 1, heat source is electric
+ * if 5: if b[1] = 1, heat source is engine
+ * if 6: if b[1] = 1, heat up the hot water
+ * if 7: if b[1] = 1, engine pre-heet
+ * if 8: update rixens control with ambient temp
+ * if 0x0b Tell Rixen's engine is running b[1] = on/off
+ * if 0x0c Enable Thermostat with b[1] = on/off
+ * 
+ * 
+ * 
+ * 0x726 is rixens diagnostic data
+ * glycol temp is b[2] and b[3]
+ * voltage is b[6] and b[7]
+ * 
+ * 
+ * 0x725 is more diagnostic data
+ * heater fan is b[4] and b[5]
+ * heater glow is 6-7
+ * heater fuel is 3
+ * 
+ * 0x724 bidirectional control
+ * bit 53 is engine selected x[6] & 0b00100000; // Bit 53 in the payload
+ * bit 51 is furnace selected bool furnaceSelected = x[6] & 0b00001000; // Bit 51 in the payload
+ * bit 52 is electric selected bool electricSelected = x[6] & 0b00010000; // Bit 52 in the payload 
+ * bool electricSelected = x[6] & 0b00010000; // Bit 52 in the payload
+ * 
+ *******************************************************
+--FFB& is water level
+b[0] = 0 = fresh water
+b[1] = 2:Gray Water
+b[2] = level
+b[3] = resolution
+*/
+
+
 #define THERMOSTAT_AMBIENT_STATUS 0x99FF9C58
 #define THERMOSTAT_STATUS_1 0x99FFE258 
 #define ROOFFAN_STATUS    0x99FEA758
@@ -62,7 +114,11 @@ class CM
 {
   public:
    
-
+  //These are the last digital inputs coming from PDM
+  can_frame lastPDM1inputs1to6;
+  can_frame lastPDM1inputs7to12;
+  can_frame lastPDM2inputs1to6;
+  can_frame lastPDM2inputs7to12;
   struct PdmDigitalOutput
   {
     char szName[16];
@@ -87,6 +143,9 @@ class CM
     float fTargetTemp;//stored as C
     bool bHotWater;
     bool bFurnace;
+    float fGlycolOutletTemp;
+    float fGlycolInletTemp;
+    
     
   }heater;
   struct ACStruct
@@ -128,13 +187,20 @@ class CM
   MCP2515* mPtr;
   can_frame lastACCommand;
   bool bVerbose = false;
+
+  int nBlinkState = 0;
   can_frame zeroPDM;
- 
+  can_frame lastpdm1inputs1to6;
+  can_frame lastpdm1inputs7to12;
+  can_frame lastpdm2inputs1to6;
+  can_frame lastpdm2inputs7to12;
+  void handleCabinBlink ();
+  void pressdigitalbutton (can_frame mLast,int nDataIndex,int nByteNum);
   void init(MCP2515* thisPtr);
   float cToF (float fDeg);
-  void data2Json(char *buffer,char *varName,bool b);
-  void data2Json(char *buffer,char *varName,int n);
-  void data2Json(char *buffer,char *varName,float f);
+  
+
+  void blinkCabin ();
   void getHeaterInfo(char *buffer);
   void getACInfo(char *buffer);
   void getTankInfo(char *buffer);
@@ -156,12 +222,15 @@ class CM
   void setACOperatingMode (byte newMode);
   void acSetTemp (float fTemp);
   //RIXENS
-  void handleRixens(can_frame m);
+  void handleRixensCommand(can_frame m);
+  void handleRixensReturn (can_frame m);
+  void handleRixensGlycolVoltage(can_frame m);
   //TANK
   void handleTankLevel(can_frame m);
   //PDM
   void handlePDMCommand(can_frame m);
   //ROOF FAN
+  void handleAck (can_frame m);
   void handleRoofFanStatus (can_frame m);
   void handleRoofFanControl(can_frame m);
   void setVentSpeed (int nSpeed);

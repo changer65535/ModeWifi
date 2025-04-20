@@ -1,6 +1,5 @@
 
 #include <WebServer.h>
-
 #include <Uri.h>
 #include <HTTP_Method.h>
 #include "cm.h"
@@ -18,12 +17,13 @@ CM cm;
 long lDataTimer = millis();
 char dataBuffer[160];
 bool bVerbose = false;
-bool bWebVerbose = true;
-bool bUploadDataToWeb = false;
+bool bWebVerbose = false;
+bool bUploadDataToWeb = true;
 int nPDMChannel = 0;
 int nPDMToPrint = 0;
 const char* hostURL = "http://130.211.161.177/cv/cvAjax.php";
 const char* szSecret = "dfgeartdsfcvbfgg53564fgfgh";
+
     
 
 
@@ -60,13 +60,14 @@ void sendPost (char *szCommand)
         //for (int i = 0;i<res.length();i++) Serial.println((byte)res[i]);
         //Serial.println(res.substring(0,1));
         res = res.substring(3);
+        DeserializationError error = deserializeJson(json, res);
         
         if (bWebVerbose) 
         {
           Serial.println(httpResponseCode);
           Serial.print("Response: ");
           Serial.println(res);
-          DeserializationError error = deserializeJson(json, res);
+          
           Serial.print("Error: ");
           Serial.println(error.c_str());
           Serial.println(json["command"].as<const char*>());
@@ -85,6 +86,7 @@ void sendPost (char *szCommand)
 }
 void postCurrentState()
 {
+  static bool bFirstTime = true;
   if (!bUploadDataToWeb) return;
   StaticJsonDocument<1024> doc;
   doc["secret"] = szSecret;
@@ -99,12 +101,13 @@ void postCurrentState()
   doc["freshTankDenom"] = cm.nFreshTankDenom;
   doc["grayTankLevel"] = cm.nGrayTankLevel;
   doc["grayTankDenom"] = cm.nGrayTankDenom;
+  if (cm.heater.bFurnace) doc["glycolOutletTemp"] = cm.heater.fGlycolOutletTemp;
+  else doc["glycolOutletTemp"] = 0;
+  
+  doc["upTimeMins"] = millis() / 1000 / 60;
   
   for (int i = 0;i<=12;i++) doc["pdm1"][i] = (byte) (cm.pdm1_output[i].fFeedback * 8 + 0.01);
   for (int i = 0;i<=12;i++) doc["pdm2"][i] = (byte) (cm.pdm2_output[i].fFeedback * 8 + 0.01);
-  
-  
-  
   
   
   HTTPClient http;   
@@ -117,23 +120,31 @@ void postCurrentState()
   if (httpResponseCode > 0) 
   {   
         
-        String res = http.getString();
-        res = res.substring(3);
-        //Serial.println(res);
-        if (bWebVerbose) Serial.println(httpResponseCode);
-        if (bWebVerbose) Serial.print("Response: ");
-        if (bWebVerbose) Serial.println(res);
-        DeserializationError error = deserializeJson(doc, res);
-        
-        if (bWebVerbose) Serial.print("Error: ");
-        if (bWebVerbose) Serial.println(error.c_str());
-        if (bWebVerbose) Serial.println(doc["command"].as<const char*>());
-        handleCommand(doc["command"]);
-        
-        
- 
+    String res = http.getString();
+    res = res.substring(3);
+    if (bWebVerbose) 
+    {
+      Serial.println(res);
+      Serial.println(httpResponseCode);
+      Serial.print("Response: ");
+      Serial.println(res);
+    }
+    DeserializationError error = deserializeJson(doc, res);
+    if (bWebVerbose)
+    {
+      Serial.print("Error: ");
+      Serial.println(error.c_str());
+      Serial.println(doc["command"].as<const char*>());
+    }
+    if (bFirstTime) 
+    {
+      bFirstTime = false;
+      
+    }
+    else handleCommand(doc["command"]);//if first time, there may be a command stuck in the que.  Clear it. 
+    
   }
-  else Serial.println("Error on sending HTTP POST");
+  else if (bVerbose) Serial.println("Error on sending HTTP POST");
 
   http.end();  //Free resources
   
@@ -373,47 +384,6 @@ LSC/CAL/Response: 11111111
 //Upload to .app filder (then show package contents.  Then  /Java/Tools etc.
 //Partition Scheme:  No OTA 1MB/3MB SPIFFS
 
-/*
- * 0x788 is Rixens CanBus ID
- * b[0] is command
- * if 1: set target temperature in celsius * 10 from b[1] and b[2] * 256
- * if 2: set blower speed as b[1] 0-100
- *       also if b[1] is 0xff fan will be auto
- * 
- * if 3: if b[1] = 1, heat source is furnace if b[0] is 0, turn off
- * if 4: if b[1] = 1, heat source is electric
- * if 5: if b[1] = 1, heat source is engine
- * if 6: if b[1] = 1, heat up the hot water
- * if 7: if b[1] = 1, engine pre-heet
- * if 8: update rixens control with ambient temp
- * if 0x0b Tell Rixen's engine is running b[1] = on/off
- * if 0x0c Enable Thermostat with b[1] = on/off
- * 
- * 
- * 
- * 0x726 is rixens diagnostic data
- * glycol temp is b[2] and b[3]
- * voltage is 6 and 7
- * 
- * 
- * 0x725 is more diagnostic data
- * heater fan is b[4] and b[5]
- * heater glow is 6-7
- * heater fuel is 3
- * 
- * 0x724 bidirectional control
- * bit 53 is engine selected x[6] & 0b00100000; // Bit 53 in the payload
- * bit 51 is furnace selected bool furnaceSelected = x[6] & 0b00001000; // Bit 51 in the payload
- * bit 52 is electric selected bool electricSelected = x[6] & 0b00010000; // Bit 52 in the payload 
- * bool electricSelected = x[6] & 0b00010000; // Bit 52 in the payload
- * 
- *******************************************************
---FFB& is water level
-b[0] = 0 = fresh water
-b[1] = 2:Gray Water
-b[2] = level
-b[3] = resolution
-*/
 
 
 const char* host = "cm";
@@ -430,11 +400,7 @@ bool bReadBus = false;
 
 /////////////////////////////////PDM STUFF//////////////////
 
-//These are the last digital inputs coming from PDM
-can_frame lastPDM1inputs1to6;
-can_frame lastPDM1inputs7to12;
-can_frame lastPDM2inputs1to6;
-can_frame lastPDM2inputs7to12;
+
 
 
 
@@ -467,6 +433,9 @@ int nFilterOutB0Index = 0;
 
 unsigned long filterIn[8];
 int nFilterInIndex = 0;
+
+byte filterInB0[16];         //bilters out the first byte for PDM command lookup
+int nFilterInB0Index = 0;
 
 int nFilterMode = 1;            //0 = no filter
                                 //1 = filter in
@@ -679,6 +648,153 @@ void handleRoot()
   Serial.println("Root");
   redirectServer(String("/index.html"));
 }
+void handleDir ()
+{
+    
+    File root = SPIFFS.open("/");
+    String sendStr = "";
+
+    File file = root.openNextFile();
+   
+    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
+    server.send(200,"text/json","");
+    while (file)
+    {
+    
+      String fileName = file.name();
+      Serial.println(fileName);
+      
+      file = root.openNextFile();
+      server.sendContent(fileName + "\r\n");
+    }
+
+    
+}
+void printServerArgs ()
+{
+  Serial.print("Ajax Total Args: ");
+  Serial.println(server.args());
+  for (uint8_t i=0; i<server.args(); i++)
+  {
+    Serial.print(server.argName(i));
+    Serial.print(": ");
+    Serial.println(server.arg(i));
+  }
+}
+void handleAJAX()
+{
+
+  bNeverConnected = false;//we have connected now!
+  
+  printServerArgs();
+  
+  String szCommand = server.arg("command");
+  if (szCommand == "") return;
+  
+   
+  Serial.print("Command is: ");
+  Serial.println(szCommand);
+  if (szCommand == "saveFile")
+  {
+    String szFname = server.arg("fname");
+    String szContents = server.arg("contents");
+    Serial.println (szFname);
+    Serial.println (szContents);
+    File file = SPIFFS.open("/" + szFname, FILE_WRITE);
+    if (!file) 
+    {
+     
+      Serial.println("There was an error opening the file for writing");
+      return;
+    }
+    if (file.print(szContents)) Serial.println("saved...");
+    else Serial.println("error saving");
+    file.close();
+    server.send(200, "text/plain", "{\"message\":\"file saved\"}");
+    return;
+  }
+  if (szCommand == "deleteFile")
+  {
+    String szFname = server.arg("fname");
+    Serial.println (szFname);
+    SPIFFS.remove("/" + szFname);
+    
+    server.send(200, "text/plain", "file deleted");
+    return;
+  }
+  if (szCommand == "sendString")
+  {
+    String szCommand = server.arg("str");
+    //Serial.print("string command is ");Serial.println(szCommand);
+    handleCommand(szCommand);
+    return;
+  } 
+  if (szCommand == "getIP")
+  {
+    if (bAccessPointMode == true)
+    {
+      Serial.println("getIP-- AP");
+      Serial.println( WiFi.softAPIP().toString());
+      server.send(200, "text/plain", WiFi.softAPIP().toString());
+     
+      
+    }
+    else
+    {
+      Serial.println("getIP-- STA");
+      Serial.println(WiFi.softAPIP().toString());
+      server.send(200, "text/plain", WiFi.localIP().toString());
+    }
+    return;
+    
+     
+  }
+  if (szCommand == "edit")
+  {
+    String szReturn = "";
+    String fname = String("/") + server.arg("fname");
+    Serial.print("extracted fname is ");
+    Serial.println(fname);
+    File f = SPIFFS.open(fname);
+    Serial.println("File Content:");
+ 
+    while(f.available())
+    {
+      char ch = f.read();
+        Serial.write(ch);
+        szReturn = szReturn + ch;
+    }
+    server.send(200,"text/plain",szReturn);
+ 
+    f.close();
+    return;
+    
+  }
+  if (szCommand == "getHeaterInfo")
+  {
+    char szBuffer[300];
+    cm.getHeaterInfo(szBuffer);
+    server.send(200, "text/plain", szBuffer);
+    return;
+    
+  }
+  if (szCommand == "getAllInfo")
+  {
+    char szBuffer[1000];
+    cm.getAllInfo(szBuffer);
+    server.send(200, "text/plain", szBuffer);
+    return;
+    
+  }
+    
+    Serial.print("NOT PARSED.  REVERTING TO HANDLE COMMAND ");
+    Serial.println(szCommand);
+    handleCommand(szCommand);
+    return;
+  
+}
+
+
 void setupServer()
 {
   //Start with mDNS
@@ -814,8 +930,47 @@ void printBin(byte aByte)
   for (int8_t aBit = 7; aBit >= 0; aBit--)
     Serial.write(bitRead(aByte, aBit) ? '1' : '0');
 }
+void parseFile (String szFname)
+{
+  
+  displayMessage("parsing " + szFname);
+  File f = SPIFFS.open("/" + szFname, FILE_READ);
+  displayMessage("file open");
+  
+  if (!f) 
+  {
+    waitForKey("FILE ERROR");
+    //while (true)
+    //{
+    //  delay(1);
+   // }
+  }
+  char buffer[120];
+  while (f.available()) 
+  {
+   int l = f.readBytesUntil('\n', buffer, sizeof(buffer)-2);
+   buffer[l] = 0;
+   
+   handleCommand(buffer);
+   delay(10);
+  //statusLed(RgbColor (0,255,0));
+  } 
+  f.close();
+  
+}
 
-
+void resetFilters()
+{
+  handleCommand ("stop");
+  Serial.println("reset Filters");
+  nFilterOutIndex = 0;
+  nFilterOutB0Index = 0;
+  nFilterInIndex = 0;
+  nFilterInB0Index = 0;
+  parseFile ("filters.txt");
+  handleCommand ("start");
+  return;
+}
 void handleCommand (String szCommand)
 {
   
@@ -852,59 +1007,78 @@ void handleCommand (String szCommand)
     }
     Serial.println("FILTER IN--------");
     for (int i = 0;i<nFilterInIndex;i++) Serial.println(filterIn[i],HEX); 
+
+    Serial.println("FILTER IN B0--------");
+    for (int i = 0;i<nFilterInB0Index;i++) Serial.println(filterInB0[i],HEX); 
     
     Serial.println("DATA MASK");Serial.println(bChangeMask,BIN);
     
   }
   //BUTTONS
   
-  if (szCommand.startsWith ("pressCargo")) pressDigitalButton(lastPDM1inputs1to6,6,1);
-  if (szCommand.startsWith ("pressCabin")) pressDigitalButton(lastPDM1inputs1to6,6,0);
-  if (szCommand.startsWith ("pressAwning")) pressDigitalButton(lastPDM1inputs1to6,7,3);
-  if (szCommand.startsWith ("pressCirc")) pressDigitalButton(lastPDM1inputs1to6,7,2);
-  if (szCommand.startsWith ("pressPump")) pressDigitalButton(lastPDM2inputs1to6,7,3);
-  if (szCommand.startsWith ("pressDrain")) pressDigitalButton(lastPDM2inputs7to12,6,1);
-  if (szCommand.startsWith ("pressAux")) pressDigitalButton(lastPDM2inputs1to6,6,0);
+  if (szCommand.startsWith ("pressCargo")) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
+  if (szCommand.startsWith ("pressCabin")) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
+  if (szCommand.startsWith ("pressAwning")) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,3);
+  if (szCommand.startsWith ("pressCirc")) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,2);
+  if (szCommand.startsWith ("pressPump")) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,7,3);
+  if (szCommand.startsWith ("pressDrain")) cm.pressdigitalbutton(cm.lastpdm2inputs7to12,6,1);
+  if (szCommand.startsWith ("pressAux")) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,6,0);
   if (szCommand.startsWith ("cabinOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
    
   }
   if (szCommand.startsWith("lightsOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
   }
   if (szCommand.startsWith("lightsOff"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,7,3);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,3);
     
   }
-  if (szCommand.startsWith("allOff"))
+  if (szCommand == "allOff")
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,7,3);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,3);
     delay(500);
-    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand > 0) pressDigitalButton(lastPDM2inputs1to6,6,0);
+    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,6,0);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].bCommand > 0) pressDigitalButton(lastPDM1inputs1to6,7,2);
+    if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,2);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) pressDigitalButton(lastPDM2inputs1to6,7,3);
+    if (cm.pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,7,3);
+    delay(500);
+    
+  }
+  if (szCommand.startsWith("allOffXAux"))
+  {
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].fFeedback > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
+    delay(500);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
+    delay(500);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].fFeedback > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,3);
+    delay(500);
+    //if (cm.pdm2_output[PDM2_OUT_AUX_POWER].fFeedback > 0) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,6,0);
+    //delay(500);
+    if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].fFeedback > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,2);
+    delay(500);
+    if (cm.pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,7,3);
     delay(500);
     
     
   }
   if (szCommand.startsWith("allOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,6,1);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand == 0) pressDigitalButton(lastPDM1inputs1to6,7,3);
-    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand == 0) pressDigitalButton(lastPDM2inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,3);
+    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,6,0);
     
   }
 if (szCommand.startsWith("printPDM"))
@@ -959,7 +1133,12 @@ if (szCommand.startsWith("printPDM"))
     }
   }
    
-  if (szCommand.startsWith("verbose")) bVerbose = !bVerbose;
+  if (szCommand.startsWith("verbose")) 
+  {
+    bVerbose = !bVerbose;
+    cm.bVerbose = bVerbose;
+  }
+  if (szCommand == "blink") cm.nBlinkState = 1;
   if (szCommand.startsWith("acOff")) cm.acCommand(0,0,0);
   if (szCommand.startsWith("acOn")) cm.acCommand(1,1,64);
   if (szCommand.startsWith("acModeHeat")) cm.setACOperatingMode(0b10);
@@ -1003,27 +1182,26 @@ if (szCommand.startsWith("printPDM"))
     int nMode = gaInt(szCommand,' ');
     cm.setACFanMode(nMode);
   }
-  if (szCommand.startsWith("acSetTemp "))
+  if (szCommand.startsWith("acSetTemp "))// in C
   {
     float fTemp = gaFloat(szCommand,' ');
     cm.acSetTemp(fTemp);
   }
   if (szCommand.startsWith("awningEnable"))
   {
-    pressDigitalButton(lastPDM1inputs7to12,6,3);
+    cm.pressdigitalbutton(cm.lastpdm1inputs7to12,6,3);
     
   }
   if (szCommand.startsWith("awningOut"))
   {
-    pressDigitalButton(lastPDM1inputs7to12,7,2);
+    cm.pressdigitalbutton(cm.lastpdm1inputs7to12,7,2);
     
     
   }
   if (szCommand.startsWith("awningIn"))
   {
-    pressDigitalButton(lastPDM1inputs7to12,7,3);
+    cm.pressdigitalbutton(cm.lastpdm1inputs7to12,7,3);
   }
-  
   
   
   
@@ -1069,6 +1247,11 @@ if (szCommand.startsWith("printPDM"))
     nFilterMode = n;
     
   }
+  if (szCommand.startsWith("clearFilters"))//because this gets confused with startswith "reset"
+  {
+    resetFilters();
+    
+  }
   if (szCommand.startsWith("changeMask "))
   {
     bChangeMask = gaHex(szCommand,' ');
@@ -1081,6 +1264,14 @@ if (szCommand.startsWith("printPDM"))
     filterOutB0[nFilterOutB0Index] = n;
     nFilterOutB0Index++;
     Serial.print("filtering out B0: ");
+    Serial.println (n,HEX);
+  }
+  if (szCommand.startsWith("filterInB0"))
+  {
+    byte n = gaHex(szCommand,' ');
+    filterInB0[nFilterInB0Index] = n;
+    nFilterInB0Index++;
+    Serial.print("filtering in B0: ");
     Serial.println (n,HEX);
   }
   if (szCommand.startsWith("showChangeOnly"))
@@ -1245,38 +1436,11 @@ void setupSPIFFS()
       delay(50);
   }
   displayMessage("SPIFFS OK");
-  //delay(1000);
+ 
   
 }
 
-void parseFile (String szFname)
-{
-  
-  displayMessage("parsing " + szFname);
-  File f = SPIFFS.open("/" + szFname, FILE_READ);
-  displayMessage("file open");
-  
-  if (!f) 
-  {
-    waitForKey("FILE ERROR");
-    //while (true)
-    //{
-    //  delay(1);
-   // }
-  }
-  char buffer[120];
-  while (f.available()) 
-  {
-   int l = f.readBytesUntil('\n', buffer, sizeof(buffer)-2);
-   buffer[l] = 0;
-   
-   handleCommand(buffer);
-   delay(10);
-  //statusLed(RgbColor (0,255,0));
-  } 
-  f.close();
-  
-}
+
 void setupConfig()
 {
   Serial.println("Init Config File");
@@ -1285,151 +1449,7 @@ void setupConfig()
   Serial.println("done with setup config");
 }
 
-void handleDir ()
-{
-    
-    File root = SPIFFS.open("/");
-    String sendStr = "";
 
-    File file = root.openNextFile();
-   
-    server.setContentLength(CONTENT_LENGTH_UNKNOWN);
-    server.send(200,"text/json","");
-    while (file)
-    {
-    
-      String fileName = file.name();
-      Serial.println(fileName);
-      
-      file = root.openNextFile();
-      server.sendContent(fileName + "\r\n");
-    }
-
-    
-}
-void printServerArgs ()
-{
-  Serial.print("Ajax Total Args: ");
-  Serial.println(server.args());
-  for (uint8_t i=0; i<server.args(); i++)
-  {
-    Serial.print(server.argName(i));
-    Serial.print(": ");
-    Serial.println(server.arg(i));
-  }
-}
-void handleAJAX()
-{
-
-  bNeverConnected = false;//we have connected now!
-  
-  printServerArgs();
-  
-  String szCommand = server.arg("command");
-  if (szCommand == "") return;
-  
-   
-  Serial.print("Command is: ");
-  Serial.println(szCommand);
-  if (szCommand == "saveFile")
-  {
-    String szFname = server.arg("fname");
-    String szContents = server.arg("contents");
-    Serial.println (szFname);
-    Serial.println (szContents);
-    File file = SPIFFS.open("/" + szFname, FILE_WRITE);
-    if (!file) 
-    {
-     
-      Serial.println("There was an error opening the file for writing");
-      return;
-    }
-    if (file.print(szContents)) Serial.println("saved...");
-    else Serial.println("error saving");
-    file.close();
-    server.send(200, "text/plain", "{\"message\":\"file saved\"}");
-    return;
-  }
-  if (szCommand == "deleteFile")
-  {
-    String szFname = server.arg("fname");
-    Serial.println (szFname);
-    SPIFFS.remove("/" + szFname);
-    
-    server.send(200, "text/plain", "file deleted");
-    return;
-  }
-  if (szCommand == "sendString")
-  {
-    String szCommand = server.arg("str");
-    //Serial.print("string command is ");Serial.println(szCommand);
-    handleCommand(szCommand);
-    return;
-  } 
-  if (szCommand == "getIP")
-  {
-    if (bAccessPointMode == true)
-    {
-      Serial.println("getIP-- AP");
-      Serial.println( WiFi.softAPIP().toString());
-      server.send(200, "text/plain", WiFi.softAPIP().toString());
-     
-      
-    }
-    else
-    {
-      Serial.println("getIP-- STA");
-      Serial.println(WiFi.softAPIP().toString());
-      server.send(200, "text/plain", WiFi.localIP().toString());
-    }
-    return;
-    
-     
-  }
-  if (szCommand == "edit")
-  {
-    String szReturn = "";
-    String fname = String("/") + server.arg("fname");
-    Serial.print("extracted fname is ");
-    Serial.println(fname);
-    File f = SPIFFS.open(fname);
-    Serial.println("File Content:");
- 
-    while(f.available())
-    {
-      char ch = f.read();
-        Serial.write(ch);
-        szReturn = szReturn + ch;
-    }
-    server.send(200,"text/plain",szReturn);
- 
-    f.close();
-    return;
-    
-  }
-  if (szCommand == "getHeaterInfo")
-  {
-    char szBuffer[300];
-    cm.getHeaterInfo(szBuffer);
-    server.send(200, "text/plain", szBuffer);
-    return;
-    
-  }
-  if (szCommand == "getAllInfo")
-  {
-    char szBuffer[1000];
-    cm.getAllInfo(szBuffer);
-    server.send(200, "text/plain", szBuffer);
-    return;
-    
-  }
-    
-    Serial.print("NOT PARSED.  REVERTING TO HANDLE COMMAND ");
-    Serial.println(szCommand);
-    handleCommand(szCommand);
-    return;
-  
-}
 
 
 bool dataChanged (can_frame m)
@@ -1454,17 +1474,7 @@ bool dataChanged (can_frame m)
   return false;
   
 }
-void resetFilters()
-{
-  handleCommand ("stop");
-  Serial.println("reset Filters");
-  nFilterOutIndex = 0;
-  nFilterOutB0Index = 0;
-  nFilterInIndex = 0;
-  parseFile ("filters.txt");
-  handleCommand ("start");
-  return;
-}
+
 void handleCanbus ()
 {
   static can_frame mLast;
@@ -1479,16 +1489,20 @@ void handleCanbus ()
     
     
     //now filter stuff
-    if (nFilterMode == 2)
-    {
-      if (filterOutMsg(m.can_id)) return;
-      
-    }
     if (nFilterMode == 1)
     {
       if (!filterInMsg(m.can_id)) return;
+      if (!filterInByte0(m.data[0])) return;
+      
     }
-    if (filterOutByte0(m.data[0])) return;
+    if (nFilterMode == 2)
+    {
+      if (filterOutMsg(m.can_id)) return;
+      if (filterOutByte0(m.data[0])) return;
+      
+    }
+    
+    
     
     if (bShowChangeOnly)
     {
@@ -1496,6 +1510,7 @@ void handleCanbus ()
     }
     ////Do the stuff
     if (bVerbose) cm.printCan(m,false);
+    
     if ((m.can_id == PDM1_MESSAGE) || (m.can_id == PDM2_MESSAGE)) 
     {
       handlePDMMessage(t,m);
@@ -1503,12 +1518,27 @@ void handleCanbus ()
     }
     if ((m.can_id == PDM1_SHORT) || (m.can_id == PDM2_SHORT))
     {
-      handlePDMMessage(t,m);
+      handlePDMShort(m);
       return;
     }
     if (m.can_id == RIXENS_COMMAND) 
     {
-      cm.handleRixens(m);
+      cm.handleRixensCommand(m);
+      return;
+    }
+    if (m.can_id == RIXENS_GLYCOLVOLTAGE)
+    {
+      cm.handleRixensGlycolVoltage(m);
+      return;
+    }
+    if ((m.can_id == RIXENS_RETURN1) || 
+        (m.can_id == RIXENS_RETURN2) ||
+        (m.can_id == RIXENS_RETURN3) ||
+        (m.can_id == RIXENS_RETURN4) ||
+        (m.can_id == RIXENS_RETURN6)) 
+    {
+      cm.handleRixensReturn(m);
+      if (bVerbose) Serial.println();
       return;
     }
     if (m.can_id == ROOFFAN_STATUS) 
@@ -1529,6 +1559,7 @@ void handleCanbus ()
     if ((m.can_id == PDM1_COMMAND) || (m.can_id == PDM2_COMMAND))
     {
       cm.handlePDMCommand(m);
+      if (bVerbose) Serial.println();
       return;
     }
    
@@ -1544,6 +1575,11 @@ void handleCanbus ()
       cm.handleThermostatStatus(m);
       return;
     }
+    if (m.can_id == ACK_CODE)
+    {
+      cm.handleAck(m);
+      return;
+    }
     if ((m.can_id == 0x98FECAAF) || (m.can_id == 0x99FECA58)) 
     {
       if (bVerbose) cm.printCan(m);
@@ -1551,12 +1587,9 @@ void handleCanbus ()
       return;
     }
     
-    if (bVerbose) 
-    {
-      Serial.print("?");
-      Serial.println();
-    }
-    
+    cm.printCan(m,false);
+    Serial.print("  ?");
+    Serial.println();
     
   }
 }
@@ -1581,6 +1614,14 @@ bool filterOutByte0 (byte b)
   for (int i = 0;i<nFilterOutB0Index;i++)
   {
     if (filterOutB0[i] == b) return true;
+  }
+  return false;
+}
+bool filterInByte0 (byte b)
+{
+  for (int i = 0;i<nFilterInB0Index;i++)
+  {
+    if (filterInB0[i] == b) return true;
   }
   return false;
 }
@@ -1729,7 +1770,7 @@ void handleMessage131 (float t,can_frame m)
   Serial.print("V ");
   Serial.println();
  }
- void handleMessage132 (float t,can_frame m)            //PDM1 Feedback Amps
+ void handleFeedback1to6 (float t,can_frame m)            //PDM1 Feedback Amps
  {
   if (m.can_id == PDM1_MESSAGE)
   { 
@@ -1748,7 +1789,7 @@ void handleMessage131 (float t,can_frame m)
 
  }
  
-void handleMessage133 (float t,can_frame m)
+void handleFeedback7to12 (float t,can_frame m)
 {
   
   if (m.can_id == PDM1_MESSAGE)
@@ -1786,47 +1827,33 @@ void handleMessage136 (float t,can_frame m)
 }
 
 
-void pressDigitalButton (can_frame mLast,int nDataIndex,int nByteNum)
+
+void handleEngineOnAllOff(can_frame m)
 {
-  if (mLast.can_dlc == 0)
+  static byte lastB6 = 10;
+  if (m.can_id != PDM1_MESSAGE) return;
+  if (m.data[0] != 0xf8) return;
+  byte b6 = m.data[6];
+  //if (b6 == 0x20) Serial.print("!");else Serial.print(" ");
+  
+  //cm.printCan (m,false);Serial.print("B6: ");Serial.println(b6,HEX);
+  if ((b6 == 0x20) and (lastB6 != 0x20))
   {
-    Serial.println("ERROR-- no old data");
-    cm.printCan(mLast);
-    return;
+    Serial.println("ENGINE JUST TURNED ON!!");
+    handleCommand("acOff");
+    handleCommand("closeVent");
+    handleCommand("allOffXAux");
+    handleCommand("awningEnable");
+    handleCommand("awningIn");
+    
+    exit;
   }
-  cm.printCan(mLast);
-  if (bVerbose)
-  {
-    Serial.print("nDataIndex = ");Serial.println(nDataIndex);
-    Serial.print("nByteNum = ");Serial.println(nByteNum);
+  lastB6 = b6;
+  return;
   
-  }
-  
-  can_frame m = mLast;
-  byte andMask = 0;
-  
-  if (nByteNum == 3) andMask = 0b00111111;
-  if (nByteNum == 2) andMask = 0b11001111;
-  if (nByteNum == 1) andMask = 0b11110011;
-  if (nByteNum == 0) andMask = 0b11111100;
-  byte orMask = (0b10 << (nByteNum * 2));
-  if (bVerbose) Serial.print("andMask: ");
-  if (bVerbose) Serial.println(andMask,BIN);
-  if (bVerbose) Serial.print("orMask: ");
-  if (bVerbose) Serial.println(orMask,BIN);
-  
-  m.data[nDataIndex] = (m.data[nDataIndex] & andMask) | orMask;
-  cm.printCan(m);
-  mcp2515.sendMessage(&m);
-  delay(250);
-  
-  m.data[nDataIndex] = m.data[nDataIndex] & andMask;
-  mcp2515.sendMessage(&m);
-  delay(100);
   
 }
-
-void handleDoubleTap(can_frame m)
+void handleFrontButtonDoubleTap(can_frame m)
 {
   static long tap1mSec = millis();
   static int tapState = 0;
@@ -1889,27 +1916,30 @@ void handleDoubleTap(can_frame m)
       handleCommand("allOff");
       handleCommand("awningEnable");
       handleCommand("awningIn");
+      handleCommand("acOff");
+      handleCommand("closeVent");
       
       tapState = 0;
     }
   }
   
 }
-void handleMessageF0F8 (float t,can_frame m)//This is ambient voltage and digital inputs
+void handlePDMDigitalInput (float t,can_frame m)         //This is ambient voltage and digital inputs
 {
   
   if (m.can_id == PDM1_MESSAGE)
   {
+    handleEngineOnAllOff(m);
     if (bVerbose) Serial.print("PDM1 ");
     if (m.data[0] == 0xf0) 
     {
-      lastPDM1inputs1to6 = m;
+      cm.lastpdm1inputs1to6 = m;
       if (bVerbose) Serial.print(" Button Saved 1-6 ");
     }
     
     if (m.data[0] == 0xf8) 
     {
-      lastPDM1inputs7to12 = m;
+      cm.lastpdm1inputs7to12 = m;
       if (bVerbose) Serial.print(" Button Saved 7-12 ");
     }
     if (bVerbose) 
@@ -1922,17 +1952,17 @@ void handleMessageF0F8 (float t,can_frame m)//This is ambient voltage and digita
   }
   if (m.can_id == PDM2_MESSAGE)
   {
-    handleDoubleTap(m);
+    handleFrontButtonDoubleTap(m);
     
     if (bVerbose) Serial.print("PDM2 ");
     if (m.data[0] == 0xf0) 
     {
-      lastPDM2inputs1to6 = m;
+      cm.lastpdm2inputs1to6 = m;
       if (bVerbose) Serial.print(" 1-6 ");
     }
     if (m.data[0] == 0xf8) 
     {
-      lastPDM2inputs7to12 = m;
+      cm.lastpdm2inputs7to12 = m;
       if (bVerbose) Serial.print(" 7-12 ");
     }
     if (bVerbose) 
@@ -1958,26 +1988,44 @@ void handleMessageF0F8 (float t,can_frame m)//This is ambient voltage and digita
   if (bVerbose) Serial.println("V");
     
 }
+void handlePDMShort (can_frame m)
+{
+  
+  if ((m.data[2] != 0) || (m.data[3] != 0))
+  {
+    Serial.print("***PDM SHORT FIRED!*** ");
+    cm.printCan(m,false);
+    
+  }
+  if (bVerbose) Serial.println();
+}
+
+void handleSupplyVoltage (can_frame m)
+{
+  float fTemp = m.data[7] * 256 + m.data[6];
+  if (bVerbose) 
+  {
+   
+    Serial.print("Battery Supply Voltage: ");
+    Serial.print(fTemp / 256.0);
+    Serial.println("V");
+  }
+  return;
+}
+void handleHeartBeat (can_frame m)
+{
+    if (bVerbose) Serial.println("PDM ID");
+    return; 
+}
 void handlePDMMessage (float t,can_frame m)
 {
-  /*  THESE ARE MESSAGES LISTED IN THE USERS MANUAL.  ACTUAL MESSAGES ARE SLIGHTLY DIFFERENT
-   *   
-//128 (80h) Analog Inputs 1-2, Digital Inputs
-//129 (81h) Analog Inputs 3-4, Output Diagnostics
-//130 (82h) Analog Inputs 5-6, Battery and Sensor Supply
-//131 (83h) Analog Inputs 7-8, Miscellaneous Feedback
-//132 (84h) Outputs 1-6 Feedback
-//133 (85h) Outputs 7-12 Feedback
-//134 (86h) Motor Model Handshake
-//135 (87h) Output Configuration Handshake Channels 1-6
-//136 (88h) Output Configuration Handshake Channels 7-12
-   */
+  
   byte m0 = m.data[0];
   
   
   if ((m0 == 0xf0) || (m0 == 0xf8))                       // BUTTON PRESS!
   {
-    handleMessageF0F8(t,m);
+    handlePDMDigitalInput(t,m);
     
     return;
   }
@@ -1997,19 +2045,29 @@ void handlePDMMessage (float t,can_frame m)
   
   if ((m0 == 0xF9) || (m0 == 0xC9) || (m0 == 0x39))                   //F9 and C9 both seem to do the same thing
   {
-    handleMessage132(t,m);                            //Output feedback.  One of the bytes seems to become 1
+    handleFeedback1to6(t,m);                            //Output feedback.  One of the bytes seems to become 1
     return;                                           //94EF111E           
   }
   if ((m0 == 0x0a) || (m0 == 0xCA) || (m0 == 0xFA))
   {
-    handleMessage133(t,m);                            //Output feedback.  One of the bytes seems to become 1
+    handleFeedback7to12(t,m);                            //Output feedback.  One of the bytes seems to become 1
     return;                                           //94EF111E           
   }
-  if (bVerbose) 
+  if (m0 == 0xfb) 
   {
-    Serial.print ("Unknown PDM Message");
-    Serial.println(m.data[0],HEX);
+    handleSupplyVoltage(m);
+    return;
+    
   }
+  if (m0 == 0xfe)
+  {
+    handleHeartBeat(m);
+    return;
+  }
+  cm.printCan(m,false);
+  Serial.println ("? PDM Message: ");
+  
+  
   
   
   
@@ -2065,13 +2123,7 @@ void setup()
     pinMode(LED,OUTPUT);
     setupCanbus();
 
-    //Setup old Inputs
-    can_frame zeroPDM;
     
-    lastPDM1inputs1to6  = zeroPDM;
-    lastPDM1inputs7to12 =zeroPDM;
-    lastPDM2inputs1to6  = zeroPDM;
-    lastPDM2inputs7to12 = zeroPDM;
     
     
     setWebVariable("currentTemperature",(float)69.2);
@@ -2089,6 +2141,8 @@ void handleUploadData()
     postCurrentState();
   }
 }
+
+
 void loop()
 {
  
@@ -2096,6 +2150,7 @@ void loop()
    server.handleClient();
    handleCanbus();
    handleUploadData();
+   cm.handleCabinBlink();
    
    ///////////////SET LED TO BLINK IF ACCESS POINT MODE IS TRUE
    if (apMode == true)

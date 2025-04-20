@@ -1,6 +1,8 @@
 #include "cm.h"
 void CM::init(MCP2515* thisPtr)
 {
+
+  
   mPtr = thisPtr;
   fAmbientTemp = 0;
   heater.bFanOn = false;
@@ -9,6 +11,8 @@ void CM::init(MCP2515* thisPtr)
   heater.bAutoMode = false;
   heater.fTargetTemp = 31;
   heater.bHotWater = false;
+  heater.fGlycolInletTemp = 0.0;
+  heater.fGlycolOutletTemp = 0.0;
   
   //AC
   ac.bCompressor = false;
@@ -25,8 +29,12 @@ void CM::init(MCP2515* thisPtr)
 
   zeroPDM.can_id = 0;
   zeroPDM.can_dlc = 0;
-  for (int i = 0;i<8;i++) zeroPDM.data[i] = 0;
-  
+  for (int i = 0;i<8;i++) zeroPDM.data[i] = 0;    
+  lastpdm1inputs1to6  = zeroPDM;
+  lastpdm1inputs7to12 = zeroPDM;
+  lastpdm2inputs1to6  = zeroPDM;
+  lastpdm2inputs7to12 = zeroPDM;
+
   lastACCommand = zeroPDM;
   lastACCommand.can_id = THERMOSTAT_COMMAND_1;
   lastACCommand.can_dlc = 8;      //off 1  0 64 64 25 99 25  0
@@ -105,25 +113,70 @@ float CM::cToF(float fDeg)
 {
   return (fDeg * 9.0 / 5.0  + 32.0);
 }
-void CM::data2Json(char *buffer,char *varName,bool b)
+
+
+void CM::handleCabinBlink ()
 {
-  buffer[0] = 0;
-  if (b == true) sprintf(buffer,"\"%s\":true",varName);
-  else sprintf(buffer,"\"%s\":false",varName);
-}
-void CM::data2Json(char *buffer,char *varName,int n)
-{
-  
-  buffer[0] = 0;
-  sprintf(buffer,"\"%s\":%d",varName,n);
-}
-void CM::data2Json(char *buffer,char *varName,float f)
-{
-  
-  buffer[0] = 0;
-  sprintf(buffer,"\"%s\":%f",varName,f);
+
+
+  static long startMillis = 0;
+  if (nBlinkState == 1)
+  {
+    pressdigitalbutton(lastpdm1inputs1to6,6,0);
+    startMillis = millis();
+    nBlinkState = 2;
+    return;
+  }
+  if (nBlinkState == 2)
+  {
+    if (millis() - startMillis < 500) return;
+    pressdigitalbutton(lastpdm1inputs1to6,6,0);
+    nBlinkState = 0;
+    
+  }
 }
 
+
+
+void CM::pressdigitalbutton (can_frame mLast,int nDataIndex,int nByteNum)
+{
+  if (mLast.can_dlc == 0)
+  {
+    Serial.println("ERROR-- no old data");
+    printCan(mLast);
+    return;
+  }
+  printCan(mLast);
+  if (bVerbose)
+  {
+    Serial.print("nDataIndex = ");Serial.println(nDataIndex);
+    Serial.print("nByteNum = ");Serial.println(nByteNum);
+  
+  }
+  
+  can_frame m = mLast;
+  byte andMask = 0;
+  
+  if (nByteNum == 3) andMask = 0b00111111;
+  if (nByteNum == 2) andMask = 0b11001111;
+  if (nByteNum == 1) andMask = 0b11110011;
+  if (nByteNum == 0) andMask = 0b11111100;
+  byte orMask = (0b10 << (nByteNum * 2));
+  if (bVerbose) Serial.print("andMask: ");
+  if (bVerbose) Serial.println(andMask,BIN);
+  if (bVerbose) Serial.print("orMask: ");
+  if (bVerbose) Serial.println(orMask,BIN);
+  
+  m.data[nDataIndex] = (m.data[nDataIndex] & andMask) | orMask;
+  if (bVerbose) printCan(m);
+  mPtr->sendMessage(&m);
+  delay(100);
+  
+  m.data[nDataIndex] = m.data[nDataIndex] & andMask;
+  mPtr->sendMessage(&m);
+  //delay(100);
+  
+  }
 void CM::getHeaterInfo(char *buffer)
 {
   StaticJsonDocument<256> doc;
@@ -178,10 +231,9 @@ void CM::getMiscInfo(char *buffer)
   doc["fAmbientTemp"] = cToF(fAmbientTemp);
   doc["nVentSpeed"] = roofFan.nSpeed;
   serializeJson (doc,buffer,64);
-  //char sz1[32];data2Json(sz1,"fAmbientTemp",cToF(fAmbientTemp));
-  //char sz2[32];data2Json(sz2,"nVentSpeed",roofFan.nSpeed);
   
-  //sprintf(buffer,"{%s,%s}",sz1,sz2);
+  
+ 
  
 }
 
@@ -189,7 +241,7 @@ void CM::getMiscInfo(char *buffer)
 void CM::getAllInfo(char *buffer)
 {
   
-  
+   
   char heaterInfo[300];getHeaterInfo(heaterInfo);
   char acInfo[300];getACInfo(acInfo);
   char tankInfo[160];getTankInfo(tankInfo);
@@ -220,7 +272,7 @@ void CM::printCan (can_frame m,bool bLF)
    if (m.can_id == TANK_LEVEL)                      Serial.print("TANK_LVL ");
    if (m.can_id == RIXENS_COMMAND)                  Serial.print("RIXN_CMD ");
    if (m.can_id == THERMOSTAT_AMBIENT_STATUS)       Serial.print("THRM_STS ");
-   if (m.can_id == THERMOSTAT_STATUS_1)              Serial.print("THRM_ST1 ");
+   if (m.can_id == THERMOSTAT_STATUS_1)             Serial.print("THRM_ST1 ");
    if (m.can_id == ROOFFAN_STATUS)                  Serial.print("RFFN_STS ");
    if (m.can_id == ROOFFAN_CONTROL)                 Serial.print("RFFN_CTL");
    if (m.can_id == PDM1_SHORT)                      Serial.print("PDM1_SHT ");
@@ -236,6 +288,7 @@ void CM::printCan (can_frame m,bool bLF)
   }
   if (bLF) Serial.println();
 }
+
 
 
 ///DIAGNOSTICS
@@ -301,7 +354,7 @@ void CM::handleDiagnostics (can_frame m)
 }
 float CM::bytes2DegreesC(byte b1,byte b2)
 {
-  return ((int)b1 + (int)b2 * 0xff) * 0.03125 - 273.0;
+  return ((int)b1 + (int)b2 * 0x100) * 0.03125 - 273.0;
 }
 
 ////AC Controls
@@ -310,10 +363,19 @@ void CM::handleThermostatStatus(can_frame m)
   ac.operatingMode = m.data[1] & 0xf;
   ac.fanMode = (m.data[1] >> 4) & 0x3;
   ac.fanSpeed = m.data[2];
-  ac.setpointHeat = m.data[3] << 8 + m.data[4];
-  ac.setpointCool = m.data[5] << 8 + m.data[6];
-  
+  ac.setpointHeat = (int)m.data[3] << 8 + (int)m.data[4];
+  ac.setpointCool = ((word)m.data[5] << 8) + m.data[6];
   ac.fSetpointCool = bytes2DegreesC(m.data[5],m.data[6]);
+  if (bVerbose) 
+  {
+    Serial.print("AC Operating Mode: ");Serial.print(ac.operatingMode);
+    Serial.print(" fanmode: ");Serial.print(ac.fanMode);
+    Serial.print(" fanspeed: ");Serial.print(ac.fanSpeed);
+    Serial.print(" sp heat: ");Serial.print(ac.setpointHeat);
+    Serial.print(" sp cool: ");Serial.print(ac.setpointCool);
+    
+    Serial.println();
+  }
   
   
 }
@@ -348,8 +410,6 @@ void CM::acCommand (byte bFanMode,byte bOperatingMode,byte bSpeed)
   //fanSpeed    0-125
   //fSetpointCool
   //fSetPointHot
-
-
                   
   struct can_frame m = lastACCommand;
   m.can_id = THERMOSTAT_COMMAND_1;
@@ -357,6 +417,13 @@ void CM::acCommand (byte bFanMode,byte bOperatingMode,byte bSpeed)
   m.data[0] = 1;
   m.data[1] = (bFanMode << 4) + bOperatingMode;
   m.data[2] = bSpeed & 0xff;
+  //ac.setpointCool = m.data[5] << 8 + m.data[6];
+  
+  
+  m.data[5] = ac.setpointCool >> 8;
+  m.data[6] = ac.setpointCool & 0xff;
+  
+  
   
   lastACCommand = m;
   mPtr->sendMessage(&m); 
@@ -407,11 +474,21 @@ void CM::acSetTemp (float fTemp)
    
 }
 //////////////TANK
+
+void CM::blinkCabin ()
+{
+  nBlinkState = 1;
+}
 void CM::handleTankLevel(can_frame m)
 {
+  static int lastFreshTankLevel = -1;
   
   if (m.data[0] == 0x00)
   {
+
+
+
+    
     nFreshTankLevel = m.data[1];
     nFreshTankDenom = m.data[2];
     if (bVerbose) 
@@ -421,6 +498,20 @@ void CM::handleTankLevel(can_frame m)
       Serial.print("/");
       Serial.print(nFreshTankDenom);
     }
+    ///BLINK
+    if (lastFreshTankLevel == -1) 
+    {
+      lastFreshTankLevel = nFreshTankLevel;   //initialize it
+      return;
+    }
+    if (lastFreshTankLevel != nFreshTankLevel) 
+    {
+      blinkCabin();
+      lastFreshTankLevel = nFreshTankLevel;
+    }
+
+
+    
   }
   if (m.data[0] == 0x02)
   {
@@ -437,8 +528,27 @@ void CM::handleTankLevel(can_frame m)
   if (bVerbose) Serial.println();
 }
 
+void CM::handleRixensReturn (can_frame m)
+{
+  if (bVerbose) Serial.println();
+}
+void CM::handleRixensGlycolVoltage(can_frame m)
+{
+  if (bVerbose) printCan(m,false);
+  heater.fGlycolOutletTemp = (m.data[3] * 256 + m.data[2]) / 100.0;
+  heater.fGlycolInletTemp = (m.data[1] * 256 + m.data[0]) / 100.0;
 
-void CM::handleRixens(can_frame m)
+  float fVoltage = (m.data[7] * 256 + m.data[6]) / 10.0;
+  if (bVerbose)
+  {
+    Serial.print(" glycolOutlet: ");Serial.print(heater.fGlycolOutletTemp);
+    Serial.print(" glycolInlet: ");Serial.print(heater.fGlycolInletTemp);
+    Serial.print(" voltage: ");Serial.print(fVoltage);
+    Serial.println();
+  }
+    
+}
+void CM::handleRixensCommand(can_frame m)
 {
   
   if (m.data[0] == 1) // set target temp anytime thermostat is controlled
@@ -484,7 +594,9 @@ void CM::handleRixens(can_frame m)
     
     if (m.data[1] == 0x01) 
     {
+      
       heater.bHotWater = true;
+      heater.bFurnace = true;
       if (bVerbose) Serial.print("RIXENS HOT WATER ON");
     }
     else
@@ -500,6 +612,7 @@ void CM::handleRixens(can_frame m)
     if (bVerbose) Serial.println();
     
   }
+  if (bVerbose) Serial.println();
   
 }
 
@@ -514,20 +627,20 @@ void CM::handlePDMCommand(can_frame m)
   }
   float fDT = (millis() - startMillis) / 1000;
   byte b0 = m.data[0] & 0x07;
+  if (bVerbose)
+  {
+    Serial.print("B0: ");
+    Serial.print(b0,HEX);
+  }
   int nPDM = 0;
   if (m.can_id == PDM1_COMMAND) nPDM = 1;
   if (m.can_id == PDM2_COMMAND) nPDM = 2;
-
-  ////////////FOR PDM SHORT////////////////
-  if ((m.can_id == PDM1_SHORT) || (m.can_id == PDM2_SHORT))
+  if (bVerbose)
   {
-    if ((m.data[2] != 0) || (m.data[3] != 0))
-    {
-      Serial.println("******** FOUND STRANGE BYTE !=0************");
-      printCan(m);
-      
-    }
+    Serial.print(" PDM=");
+    Serial.print(nPDM);
   }
+  
   if (b0 == 0) // setup channel:
   {
     Serial.println("Setup Channel");
@@ -576,6 +689,7 @@ void CM::handlePDMCommand(can_frame m)
   }
   if (b0 == 0x04)//1-6
   {
+    if (bVerbose) Serial.print("COMMAND ");
     if (nPDM == 1) for (int i = 1;i<=6;i++) pdm1_output[i].bCommand = m.data[i];
     if (nPDM == 2) for (int i = 1;i<=6;i++) pdm2_output[i].bCommand = m.data[i];
     if (bVerbose) Serial.print("0x04 1-6: ");
@@ -593,23 +707,17 @@ void CM::handlePDMCommand(can_frame m)
   }
   Serial.print("UNKNOWN PDM COMMAND B0-- ");
   Serial.println(m.data[0],HEX);
-  /*
-  Serial.print(" PDM");Serial.print(nPDM);Serial.print("_CMD  (");
-  Serial.print(m.data[0] & 0x07,HEX);Serial.print(")");
-  if (b0 == 0x04) Serial.print(" Out 1- 6: ");
-  if (b0 == 0x05) Serial.print(" Out 7-12: ");
-  for (int i = 1;i<7;i++)
-  {
-    Serial.print((int)byte2Float(m.data[i]));
-    if (m.data[i] < 100) Serial.print(" ");
-    if (m.data[i] < 10) Serial.print(" ");
-    Serial.print("   ");
-  }
-  */
+  
 
   if (bVerbose) Serial.println();
 }
 //////////////ROOF FAN
+
+void CM::handleAck (can_frame m)
+{
+  printCan(m);
+  Serial.println();
+}
 void CM::handleRoofFanStatus (can_frame m)
 {
   //dome position 0 = closed
@@ -617,7 +725,7 @@ void CM::handleRoofFanStatus (can_frame m)
   //                2 = 1/2
   //                3 = 3/4
   //                4 = open
-  
+  if (bVerbose) Serial.print("RF: :");
   roofFan.nSystemStatus = m.data[1] & 0x3;
   roofFan.nFanMode = (m.data[1] >> 2) & 0x03;
   roofFan.nSpeedMode = (m.data[1] >> 4) & 0x03;
@@ -625,20 +733,29 @@ void CM::handleRoofFanStatus (can_frame m)
   roofFan.nSpeed = m.data[2];
   roofFan.nWindDirection = m.data[3] & 0x03;
   roofFan.nDomePosition = (m.data[3] >> 2) & 0xf;// 0 = closed, 1 = 1/4 2 = 1/2, 3 = 3/4, 4 = totally open
-
+  
   
   roofFan.fSetPoint = bytes2DegreesC(m.data[6],m.data[7]);
   
-  /*Serial.print("FAN: ");
-  if (cm.roofFan.nSystemStatus == 0x01) Serial.print("On  ");else Serial.print("Off ");
-  if (cm.roofFan.nFanMode == 0x01) Serial.print("Forced On ");else Serial.print("Auto    ");
-  if (cm.roofFan.nSpeedMode == 0x01) Serial.print("Speed: Auto ");else Serial.print("Speed: Manual ");
-  Serial.print("Speed=");Serial.print(cm.roofFan.nSpeed);Serial.print(" ");
-  Serial.print("Dome: ");Serial.print(cm.roofFan.nDomePosition);Serial.print(" ");
-  Serial.print("SetPt:");Serial.print(cm.roofFan.fSetPoint);Serial.print(" ");
-  Serial.print("Dir: ");Serial.print(cm.roofFan.nWindDirection);Serial.print(" ");//0 = out, 1 = in
-  Serial.println();
-  */
+  if (bVerbose) 
+  {
+    Serial.print("Rain: ");Serial.print(m.data[3] >> 6,HEX); 
+    Serial.print(" stat: ");Serial.print(roofFan.nSystemStatus);
+    Serial.print(" fanMode: ");Serial.print(roofFan.nFanMode);
+    Serial.print(" speedMode: ");Serial.print(roofFan.nSpeedMode);
+    Serial.print(" light: ");Serial.print(roofFan.nLight);
+    Serial.print(" speed: ");Serial.print(roofFan.nSpeed);
+    Serial.print(" dir: ");Serial.print(roofFan.nWindDirection);
+    Serial.print(" pps: ");Serial.print(roofFan.nDomePosition);
+    
+    
+    
+    
+    
+    
+    
+    Serial.println();
+  }
 }
 
 void CM::openVent() //vent position doesnt work.  alwayds full open or 
@@ -733,6 +850,7 @@ void CM::setVentDirection (bool bDir)   //0 = out, 1 = in
 }
 void CM::handleRoofFanControl(can_frame m)
 {
+  bVerbose = true;
   if (bVerbose) 
   {
     
@@ -747,7 +865,7 @@ void CM::handleRoofFanControl(can_frame m)
   
     Serial.println("Roof Fan Control");
   }
-  
+   bVerbose = false;
 }
 
 

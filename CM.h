@@ -131,6 +131,8 @@ class CM
     byte bCommand;
     
   };
+  PdmDigitalOutput pdm1_output[13];//to accomidate 1-12 inclusive.  Total of 13
+  PdmDigitalOutput pdm2_output[13];
   
   
   struct heaterStruct
@@ -160,11 +162,10 @@ class CM
     word setpointCool;
     
   }ac;
-  PdmDigitalOutput pdm1_output[13];//to accomidate 1-12 inclusive.  Total of 13
-  PdmDigitalOutput pdm2_output[13];
   
-  int nFreshTankLevel;
-  int nGrayTankLevel;
+  
+  int nFreshTankLevel = -1;
+  int nGrayTankLevel = -1;
   int nFreshTankDenom;
   int nGrayTankDenom;
   float fAmbientTemp;
@@ -188,19 +189,18 @@ class CM
   can_frame lastACCommand;
   bool bVerbose = false;
 
-  int nBlinkState = 0;
+  
+  bool bMiniPumpMode = false;
+  bool bSmartSiphonMode = false;
   can_frame zeroPDM;
-  can_frame lastpdm1inputs1to6;
-  can_frame lastpdm1inputs7to12;
-  can_frame lastpdm2inputs1to6;
-  can_frame lastpdm2inputs7to12;
-  void handleCabinBlink ();
+  
+  void handleCabinBlink (bool bInit = false);
   void pressdigitalbutton (can_frame mLast,int nDataIndex,int nByteNum);
   void init(MCP2515* thisPtr);
   float cToF (float fDeg);
   
 
-  void blinkCabin ();
+  
   void getHeaterInfo(char *buffer);
   void getACInfo(char *buffer);
   void getTankInfo(char *buffer);
@@ -237,9 +237,13 @@ class CM
   void closeVent();
   void openVent();
   void setVentDirection (bool bDir);  //0 = out, 1 = in
+  void handleSmartSiphon ();
+  void handleDrinkBlink(bool bBlinkMode = 0);
+  void handleMiniPump();
+  void handleMinutePump(int nInitVal = 0);
   
 
   
-void handleThermostatAmbientStatus (can_frame m);
+  void handleThermostatAmbientStatus (can_frame m);
 };
 #endif

@@ -30,10 +30,10 @@ void CM::init(MCP2515* thisPtr)
   zeroPDM.can_id = 0;
   zeroPDM.can_dlc = 0;
   for (int i = 0;i<8;i++) zeroPDM.data[i] = 0;    
-  lastpdm1inputs1to6  = zeroPDM;
-  lastpdm1inputs7to12 = zeroPDM;
-  lastpdm2inputs1to6  = zeroPDM;
-  lastpdm2inputs7to12 = zeroPDM;
+  lastPDM1inputs1to6  = zeroPDM;
+  lastPDM1inputs7to12 = zeroPDM;
+  lastPDM2inputs1to6  = zeroPDM;
+  lastPDM2inputs7to12 = zeroPDM;
 
   lastACCommand = zeroPDM;
   lastACCommand.can_id = THERMOSTAT_COMMAND_1;
@@ -115,14 +115,18 @@ float CM::cToF(float fDeg)
 }
 
 
-void CM::handleCabinBlink ()
+void CM::handleCabinBlink (bool bInit)
 {
 
-
+  static int nBlinkState = 0;
+  if (bInit) nBlinkState = 1;
   static long startMillis = 0;
+  
+  
   if (nBlinkState == 1)
   {
-    pressdigitalbutton(lastpdm1inputs1to6,6,0);
+    
+    pressdigitalbutton(lastPDM1inputs1to6,6,0);
     startMillis = millis();
     nBlinkState = 2;
     return;
@@ -130,7 +134,8 @@ void CM::handleCabinBlink ()
   if (nBlinkState == 2)
   {
     if (millis() - startMillis < 500) return;
-    pressdigitalbutton(lastpdm1inputs1to6,6,0);
+    
+    pressdigitalbutton(lastPDM1inputs1to6,6,0);
     nBlinkState = 0;
     
   }
@@ -146,12 +151,12 @@ void CM::pressdigitalbutton (can_frame mLast,int nDataIndex,int nByteNum)
     printCan(mLast);
     return;
   }
-  printCan(mLast);
+  
   if (bVerbose)
   {
+    Serial.print("Last: ");printCan(mLast);
     Serial.print("nDataIndex = ");Serial.println(nDataIndex);
     Serial.print("nByteNum = ");Serial.println(nByteNum);
-  
   }
   
   can_frame m = mLast;
@@ -475,10 +480,7 @@ void CM::acSetTemp (float fTemp)
 }
 //////////////TANK
 
-void CM::blinkCabin ()
-{
-  nBlinkState = 1;
-}
+
 void CM::handleTankLevel(can_frame m)
 {
   static int lastFreshTankLevel = -1;
@@ -498,18 +500,7 @@ void CM::handleTankLevel(can_frame m)
       Serial.print("/");
       Serial.print(nFreshTankDenom);
     }
-    ///BLINK
-    if (lastFreshTankLevel == -1) 
-    {
-      lastFreshTankLevel = nFreshTankLevel;   //initialize it
-      return;
-    }
-    if (lastFreshTankLevel != nFreshTankLevel) 
-    {
-      blinkCabin();
-      lastFreshTankLevel = nFreshTankLevel;
-    }
-
+    
 
     
   }
@@ -868,7 +859,6 @@ void CM::handleRoofFanControl(can_frame m)
    bVerbose = false;
 }
 
-
 void CM::handleThermostatAmbientStatus (can_frame m)
 {
   int nInstance = m.data[0];
@@ -879,20 +869,149 @@ void CM::handleThermostatAmbientStatus (can_frame m)
     Serial.print("  AMBIENT TEMP: ");
     Serial.println(fAmbientTemp);
   }
+}
+void CM::handleMiniPump()
+{
   
-  /*int nOperatingMode = m.data[1] & 0xff;
-  Serial.print("operatingMode: ");Serial.print(nOperatingMode);
-  int nFanMode = (m.data[1] >> 4) & 0x03;
-  Serial.print(", fanMode: ");Serial.print(nFanMode);
-  int nScheduleMode = (m.data[1] >> 6) & 0x03;
-  Serial.print(", ScheduleMode: ");Serial.print(nScheduleMode);
-  int nFanSpeed = m.data[2];
-  Serial.print(", fanSpeed:");Serial.print(nFanSpeed);
-  float fSetPointHeat = bytes2Degrees(m.data[3],m.data[4]);
-  Serial.print(", setPoint Heat: ");Serial.print(fSetPointHeat);
-  float fSetPointCool = bytes2Degrees(m.data[5],m.data[6]);
-  Serial.print(", setPoint Cool: ");Serial.print(fSetPointCool);
-  Serial.println();
-  */
+  static long pauseMillis = millis();
+  static byte bLastPumpPress = 0;
+  if (millis() - pauseMillis < 100) return;
+  pauseMillis = millis();
+  
+  if (bMiniPumpMode == false) return;
+  if (lastPDM2inputs1to6.can_dlc == 0) return;
+  //get the command state of the pump
+  byte bPumpPress = lastPDM2inputs1to6.data[7]  & 0b11000000;
+ 
+  
+  if ((bPumpPress == 0) && (bLastPumpPress > 0))
+  {
+    Serial.println("MiniPump!");
+    if (pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) pressdigitalbutton(lastPDM2inputs1to6,7,3);
+  }
+  bLastPumpPress = bPumpPress;
   
 }
+void CM::handleSmartSiphon()
+{
+  static long pauseMillis = millis();
+  static byte bLastPumpPress = 0;
+  static byte smartSiphonStatus = 0;
+  static long millisAtPress = millis();
+  static byte bLastPumpCommand = 0;
+  static float fAmpsAfter5Seconds = 0;
+  if (millis() - pauseMillis < 100) return;
+  
+  pauseMillis = millis();
+
+  
+  if (bSmartSiphonMode == false) return;
+  if (lastPDM2inputs1to6.can_dlc == 0) return;
+
+  //if the pump if off, return;
+  if (pdm1_output[PDM1_OUT_WATER_PUMP].fFeedback == 0)
+  {
+    Serial.println("feedback = 0");
+    smartSiphonStatus = 0;
+  }
+  if ((pdm1_output[PDM1_OUT_WATER_PUMP].bCommand == 0) && (bLastPumpCommand > 0))
+  {
+    Serial.println("Pump is turned off");
+    smartSiphonStatus = 0;
+    bLastPumpCommand = pdm1_output[PDM1_OUT_WATER_PUMP].bCommand;
+    return;
+    
+  }
+  bLastPumpCommand = pdm1_output[PDM1_OUT_WATER_PUMP].bCommand;
+  //get the command state of the pump
+  byte bPumpPress = lastPDM2inputs1to6.data[7]  & 0b11000000;
+ 
+  
+  if ((smartSiphonStatus == 0) && (bPumpPress > 0) && (bLastPumpPress == 0)) //the user just pressed the button
+  {
+    Serial.println("Button Pressed");
+    smartSiphonStatus = 1;
+    millisAtPress = millis();
+   
+    
+  }
+  bLastPumpPress = bPumpPress;
+  if ((smartSiphonStatus == 1) && (millis() - millisAtPress > 5000))
+  {
+    Serial.println("5 seconds!");
+    smartSiphonStatus = 2;
+    fAmpsAfter5Seconds = pdm1_output[PDM1_OUT_WATER_PUMP].fFeedback;
+    Serial.println(fAmpsAfter5Seconds);
+    
+  }
+  if (smartSiphonStatus == 2)
+
+  {
+    if (fAmpsAfter5Seconds - pdm1_output[PDM1_OUT_WATER_PUMP].fFeedback > 2)
+    {
+      Serial.println("DRY!!");
+      //if (pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) pressdigitalbutton(lastPDM2inputs1to6,7,3);
+      smartSiphonStatus = 0;
+      
+    }
+  }
+  
+  
+}
+void CM::handleDrinkBlink(bool bBlinkMode)
+{
+  static bool bActive = false;
+  if (bBlinkMode == 1) bActive = true;
+  if (bBlinkMode == -1) bActive = false;
+  if (!bActive) return;
+  if (nFreshTankLevel == -1) return;
+  static int lastFreshTankLevel = nFreshTankLevel;
+  
+  if (lastFreshTankLevel != nFreshTankLevel) 
+  {
+    handleCabinBlink(true);//true means init
+    Serial.println("**BLINK**");
+    
+  }
+  lastFreshTankLevel = nFreshTankLevel;
+}
+
+void CM::handleMinutePump(int nInitVal)
+{
+  static long pumpOnMillis = 0;
+  static byte bLastPumpPress = 0;
+  static int nMinutePumpStatus = 0;
+  static int nWaitMins = 1;
+  static bool bActive = false;
+
+  byte bPumpPress;
+  if (nInitVal ==  -1) bActive = false;
+  
+  if (nInitVal > 0) 
+  {
+    nWaitMins = nInitVal;
+    bActive = true;
+    Serial.println("Minute Pump Active");
+  }
+  if (bActive)
+  {
+    bPumpPress = lastPDM2inputs1to6.data[7]  & 0b11000000;
+    if ((nMinutePumpStatus == 0) && (bPumpPress > 0) && (bLastPumpPress == 0)) //the user just pressed the button
+    {
+      Serial.println("Minute Pump Starts");
+      nMinutePumpStatus = 1;
+      pumpOnMillis = millis();  
+    }
+    long lWaitMillis = 60000 * nWaitMins;
+    if ((nMinutePumpStatus == 1) && (millis() - pumpOnMillis > lWaitMillis))
+    {
+      Serial.println("Pump Off!");
+      if (pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) pressdigitalbutton(lastPDM2inputs1to6,7,3);
+      nMinutePumpStatus = 0;
+      bActive = false;
+    }
+  }
+  bLastPumpPress = bPumpPress;
+}
+  
+  

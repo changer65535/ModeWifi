@@ -1016,69 +1016,69 @@ void handleCommand (String szCommand)
   }
   //BUTTONS
   
-  if (szCommand.startsWith ("pressCargo")) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
-  if (szCommand.startsWith ("pressCabin")) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
-  if (szCommand.startsWith ("pressAwning")) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,3);
-  if (szCommand.startsWith ("pressCirc")) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,2);
-  if (szCommand.startsWith ("pressPump")) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,7,3);
-  if (szCommand.startsWith ("pressDrain")) cm.pressdigitalbutton(cm.lastpdm2inputs7to12,6,1);
-  if (szCommand.startsWith ("pressAux")) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,6,0);
+  if (szCommand.startsWith ("pressCargo")) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
+  if (szCommand.startsWith ("pressCabin")) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
+  if (szCommand.startsWith ("pressAwning")) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,3);
+  if (szCommand.startsWith ("pressCirc")) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,2);
+  if (szCommand.startsWith ("pressPump")) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,7,3);
+  if (szCommand.startsWith ("pressDrain")) cm.pressdigitalbutton(cm.lastPDM2inputs7to12,6,1);
+  if (szCommand.startsWith ("pressAux")) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,6,0);
   if (szCommand.startsWith ("cabinOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
    
   }
   if (szCommand.startsWith("lightsOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
   }
   if (szCommand.startsWith("lightsOff"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,3);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,3);
     
   }
   if (szCommand == "allOff")
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,3);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,3);
     delay(500);
-    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,6,0);
+    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,6,0);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,2);
+    if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,2);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,7,3);
+    if (cm.pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,7,3);
     delay(500);
     
   }
   if (szCommand.startsWith("allOffXAux"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].fFeedback > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].fFeedback > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].fFeedback > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,3);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].fFeedback > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,3);
     delay(500);
-    //if (cm.pdm2_output[PDM2_OUT_AUX_POWER].fFeedback > 0) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,6,0);
+    //if (cm.pdm2_output[PDM2_OUT_AUX_POWER].fFeedback > 0) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,6,0);
     //delay(500);
-    if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].fFeedback > 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,2);
+    if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].fFeedback > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,2);
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,7,3);
+    if (cm.pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,7,3);
     delay(500);
     
     
   }
   if (szCommand.startsWith("allOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,6,1);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm1inputs1to6,7,3);
-    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand == 0) cm.pressdigitalbutton(cm.lastpdm2inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
+    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
+    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,3);
+    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,6,0);
     
   }
 if (szCommand.startsWith("printPDM"))
@@ -1138,7 +1138,14 @@ if (szCommand.startsWith("printPDM"))
     bVerbose = !bVerbose;
     cm.bVerbose = bVerbose;
   }
-  if (szCommand == "blink") cm.nBlinkState = 1;
+  if (szCommand == "miniPumpOn") cm.bMiniPumpMode = true;
+  if (szCommand == "miniPumpOff") cm.bMiniPumpMode = false;
+
+  if (szCommand.startsWith("minutePump ")) cm.handleMinutePump(gaInt(szCommand,' '));
+
+  
+  
+  if (szCommand == "blink") cm.handleCabinBlink(true);
   if (szCommand.startsWith("acOff")) cm.acCommand(0,0,0);
   if (szCommand.startsWith("acOn")) cm.acCommand(1,1,64);
   if (szCommand.startsWith("acModeHeat")) cm.setACOperatingMode(0b10);
@@ -1189,18 +1196,18 @@ if (szCommand.startsWith("printPDM"))
   }
   if (szCommand.startsWith("awningEnable"))
   {
-    cm.pressdigitalbutton(cm.lastpdm1inputs7to12,6,3);
+    cm.pressdigitalbutton(cm.lastPDM1inputs7to12,6,3);
     
   }
   if (szCommand.startsWith("awningOut"))
   {
-    cm.pressdigitalbutton(cm.lastpdm1inputs7to12,7,2);
+    cm.pressdigitalbutton(cm.lastPDM1inputs7to12,7,2);
     
     
   }
   if (szCommand.startsWith("awningIn"))
   {
-    cm.pressdigitalbutton(cm.lastpdm1inputs7to12,7,3);
+    cm.pressdigitalbutton(cm.lastPDM1inputs7to12,7,3);
   }
   
   
@@ -1619,6 +1626,7 @@ bool filterOutByte0 (byte b)
 }
 bool filterInByte0 (byte b)
 {
+  if (nFilterInB0Index == 0) return true;
   for (int i = 0;i<nFilterInB0Index;i++)
   {
     if (filterInB0[i] == b) return true;
@@ -1913,7 +1921,7 @@ void handleFrontButtonDoubleTap(can_frame m)
       delay(500);
       cm.closeVent();
       delay(500);
-      handleCommand("allOff");
+      handleCommand("allOffXAux");
       handleCommand("awningEnable");
       handleCommand("awningIn");
       handleCommand("acOff");
@@ -1933,13 +1941,13 @@ void handlePDMDigitalInput (float t,can_frame m)         //This is ambient volta
     if (bVerbose) Serial.print("PDM1 ");
     if (m.data[0] == 0xf0) 
     {
-      cm.lastpdm1inputs1to6 = m;
+      cm.lastPDM1inputs1to6 = m;
       if (bVerbose) Serial.print(" Button Saved 1-6 ");
     }
     
     if (m.data[0] == 0xf8) 
     {
-      cm.lastpdm1inputs7to12 = m;
+      cm.lastPDM1inputs7to12 = m;
       if (bVerbose) Serial.print(" Button Saved 7-12 ");
     }
     if (bVerbose) 
@@ -1957,12 +1965,12 @@ void handlePDMDigitalInput (float t,can_frame m)         //This is ambient volta
     if (bVerbose) Serial.print("PDM2 ");
     if (m.data[0] == 0xf0) 
     {
-      cm.lastpdm2inputs1to6 = m;
-      if (bVerbose) Serial.print(" 1-6 ");
+      cm.lastPDM2inputs1to6 = m;
+      
     }
     if (m.data[0] == 0xf8) 
     {
-      cm.lastpdm2inputs7to12 = m;
+      cm.lastPDM2inputs7to12 = m;
       if (bVerbose) Serial.print(" 7-12 ");
     }
     if (bVerbose) 
@@ -2145,19 +2153,17 @@ void handleUploadData()
 
 void loop()
 {
- 
+   //cm.bSmartSiphonMode = true; // tempdel
    handleSerial();
    server.handleClient();
    handleCanbus();
    handleUploadData();
    cm.handleCabinBlink();
+   cm.handleMiniPump();
+   cm.handleSmartSiphon();
+   cm.handleDrinkBlink();
+   cm.handleMinutePump();
    
    ///////////////SET LED TO BLINK IF ACCESS POINT MODE IS TRUE
-   if (apMode == true)
-   {
-      if ((millis() % 2000) < 1000) digitalWrite(LED,LOW);
-        else digitalWrite (LED,HIGH);
-      
-   }
    
 }

@@ -110,10 +110,13 @@ b[3] = resolution
 #define PDM2_OUT_SINK_PUMP 11
 #define PDM2_OUT_AUX_POWER 12
 
+
+
 class CM
 {
   public:
-   
+
+   String szMessage;
   //These are the last digital inputs coming from PDM
   can_frame lastPDM1inputs1to6;
   can_frame lastPDM1inputs7to12;
@@ -133,7 +136,10 @@ class CM
   };
   PdmDigitalOutput pdm1_output[13];//to accomidate 1-12 inclusive.  Total of 13
   PdmDigitalOutput pdm2_output[13];
-  
+
+byte *bPtrPumpCommand = &pdm1_output[PDM1_OUT_WATER_PUMP].bCommand;
+byte *CABIN_LIGHTS_COMMAND = &pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand;
+byte *CARGO_LIGHTS_COMMAND = &pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand;
   
   struct heaterStruct
   {
@@ -181,6 +187,7 @@ class CM
     int nDomePosition;
     int fSetPoint;
     float fAmbientTemp;
+    byte bRainSensor;
     
     
   }roofFan;
@@ -191,10 +198,10 @@ class CM
 
   
   bool bMiniPumpMode = false;
-  bool bSmartSiphonMode = false;
+  
   can_frame zeroPDM;
   
-  void handleCabinBlink (bool bInit = false);
+  void handleCabinBlink (int nInit = 0);
   void pressdigitalbutton (can_frame mLast,int nDataIndex,int nByteNum);
   void init(MCP2515* thisPtr);
   float cToF (float fDeg);
@@ -205,7 +212,7 @@ class CM
   void getACInfo(char *buffer);
   void getTankInfo(char *buffer);
   void getMiscInfo(char *buffer);
-  void getAllInfo(char *buffer);
+  
 
   float byte2Float(byte b);
   float bytes2DegreesC(byte b1,byte b2);
@@ -221,14 +228,63 @@ class CM
   void setACFanMode (byte bFanMode);
   void setACOperatingMode (byte newMode);
   void acSetTemp (float fTemp);
+  void acOff();
   //RIXENS
   void handleRixensCommand(can_frame m);
   void handleRixensReturn (can_frame m);
   void handleRixensGlycolVoltage(can_frame m);
   //TANK
   void handleTankLevel(can_frame m);
-  //PDM
+
+  //PDM MESSAGES
+  void handleSupplyVoltage (can_frame m);
+  float feedbackAmps(can_frame m,int nChannelNumber);
+  void handleFeedback1to6 (float t,can_frame m);
+  void handleFeedback7to12 (float t,can_frame m);
+  void handleMessage134 (float t,can_frame m);
+  void handleMessage135 (float t,can_frame m);
+  void handleMessage136 (float t,can_frame m);
+  void handleHeartBeat (can_frame m);
+  void handlePDMMessage (float t,can_frame m);
+  float tenBitAnalog(can_frame m,int channelNumber);
+  char getDigitalInput (can_frame m,int nInputNumber);
+  void handleMessage128 (float t,can_frame m);
+  void handleMessage129 (float t,can_frame m);
+  void handleMessage130 (float t,can_frame m);
+  void handleMessage131 (float t,can_frame m);
+
+
+  
+  //PDM COMMANDS
+  void printInputDiagnostics(byte b);
+  void printBin(byte aByte);
+  void handlePDMShort (can_frame m);
+  void handlePDMDigitalInput (float t,can_frame m);
   void handlePDMCommand(can_frame m);
+  void handleEngineOnAllOff(can_frame m);
+  void handleFrontButtonDoubleTap(can_frame m);
+  //PDM QUICKIES
+  void pumpOff ();
+  void circOff();
+  void cabinOff();
+  void awningOff();
+  void cargoOff();
+  void pressCabin();
+  void pressCargo();
+  void pressAwning();
+  void pressCirc();
+  void pressPump ();
+  void pressAwningIn ();
+  void pressAwningOut ();
+  void pressAux();
+  void auxOff();
+  void auxOn();
+  void cabinOn();
+  void pressDrain();
+  void cargoOn();
+  void awningOn();
+  void pressAwningEnable();
+  
   //ROOF FAN
   void handleAck (can_frame m);
   void handleRoofFanStatus (can_frame m);
@@ -237,10 +293,16 @@ class CM
   void closeVent();
   void openVent();
   void setVentDirection (bool bDir);  //0 = out, 1 = in
-  void handleSmartSiphon ();
+
+  //smart stuff
+  void handleSmartSiphon (int handleSmartSiphon = 0);
   void handleDrinkBlink(bool bBlinkMode = 0);
   void handleMiniPump();
   void handleMinutePump(int nInitVal = 0);
+  void handleShowerJerk(int nInitVal = 0);
+  void handleRandomLights(int nInitVal = 0);
+  void handleWaterTracker(int nInitVal = 0);
+  void handleWaterTempBlink(int nInitVal = 0);
   
 
   

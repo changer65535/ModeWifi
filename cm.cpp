@@ -2,7 +2,7 @@
 void CM::init(MCP2515* thisPtr)
 {
 
-  
+  szMessage = "You stay classy, San Diego";
   mPtr = thisPtr;
   fAmbientTemp = 0;
   heater.bFanOn = false;
@@ -104,6 +104,7 @@ void CM::init(MCP2515* thisPtr)
   roofFan.nDomePosition = 0;
   roofFan.fSetPoint = 0;
   roofFan.fAmbientTemp = 0;
+  roofFan.bRainSensor = 0;
 }
 
 
@@ -115,18 +116,23 @@ float CM::cToF(float fDeg)
 }
 
 
-void CM::handleCabinBlink (bool bInit)
+void CM::handleCabinBlink (int nInit)
 {
-
+  static int nBlinksLeft = 0;
   static int nBlinkState = 0;
-  if (bInit) nBlinkState = 1;
+  if (nInit > 0) 
+  {
+    nBlinkState = 1;
+    nBlinksLeft = nInit * 2 - 1;
+  }
   static long startMillis = 0;
+  
   
   
   if (nBlinkState == 1)
   {
     
-    pressdigitalbutton(lastPDM1inputs1to6,6,0);
+    pressCabin();
     startMillis = millis();
     nBlinkState = 2;
     return;
@@ -135,12 +141,221 @@ void CM::handleCabinBlink (bool bInit)
   {
     if (millis() - startMillis < 500) return;
     
-    pressdigitalbutton(lastPDM1inputs1to6,6,0);
-    nBlinkState = 0;
+    pressCabin();
+    nBlinksLeft--;
+    if (nBlinksLeft <= 0) nBlinkState = 0;
+    else 
+    {
+      nBlinkState = 2;
+      startMillis = millis();
+    }
     
   }
 }
 
+void CM::acOff()
+{
+  acCommand(0,0,0);
+}
+void CM::handleEngineOnAllOff(can_frame m)
+{
+  static byte lastB6 = 10;
+  if (m.can_id != PDM1_MESSAGE) return;
+  if (m.data[0] != 0xf8) return;
+  byte b6 = m.data[6];
+  //if (b6 == 0x20) Serial.print("!");else Serial.print(" ");
+  
+  //printCan (m,false);Serial.print("B6: ");Serial.println(b6,HEX);
+  if ((b6 == 0x20) and (lastB6 != 0x20))
+  {
+    Serial.println("ENGINE JUST TURNED ON!!");
+    acOff();
+    closeVent();
+
+    cabinOff();
+    delay(500);
+    cargoOff();
+    delay(500);
+    awningOff();
+    delay(500);
+    
+    circOff();
+    delay(500);
+    pumpOff();
+    delay(500);
+    
+
+    
+    pressAwningEnable();
+    pressAwningIn();
+    
+   
+  }
+  lastB6 = b6;
+  return;
+  
+  
+}
+
+void CM::printBin(byte aByte) 
+{
+  for (int8_t aBit = 7; aBit >= 0; aBit--)
+  Serial.write(bitRead(aByte, aBit) ? '1' : '0');
+}
+void CM::handleFrontButtonDoubleTap(can_frame m)
+{
+  static long tap1mSec = millis();
+  static int tapState = 0;
+  if (m.can_id != PDM2_MESSAGE) return;
+  if (m.data[0] != 0xf0) return;
+  byte b7 = m.data[7];
+  
+  if ((millis() - tap1mSec) > 10000) 
+  {
+    tapState = 0;
+  }
+  if (tapState == 0)
+  {
+    if ((b7 & 0b00110000) == 0x20)
+    {
+      Serial.println("TAP");
+      tap1mSec = millis();
+      tapState = 1;               //single press;
+    }
+    
+  }
+  if (tapState == 1)
+  {
+    if ((b7 & 0b00110000) == 0x00)
+    {
+      Serial.println("Release");
+      tap1mSec = millis();
+      tapState = 2;               //single press;
+    }
+  }
+  if (tapState == 2)
+  {
+    if ((b7 & 0b00110000) == 0x20)
+    {
+      Serial.println("Second Tap");
+      tapState = 3; 
+    }
+  }
+  if (tapState == 3)
+  {
+    if ((b7 & 0b00110000) == 0x20)
+    {
+      
+      Serial.println("Second Release");
+      tapState = 4;
+      
+    }
+    
+    
+  }
+  if (tapState == 4)
+  {
+    Serial.println("Waiting");
+    if ((millis() - tap1mSec) > 1000)
+    {
+      acOff();
+      delay(500);
+      closeVent();
+      delay(500);
+      cabinOff();
+      delay(500);
+      cargoOff();
+      delay(500);
+      awningOff();
+      delay(500);
+      
+      circOff();
+      delay(500);
+      pumpOff();
+      delay(500);
+      pressAwningEnable();
+      pressAwningIn();
+      acOff();
+      
+      
+      tapState = 0;
+    }
+  }
+  
+}
+void CM::handlePDMDigitalInput (float t,can_frame m)         //This is message payload contains ambient voltage and digital inputs
+{
+  
+  if (m.can_id == PDM1_MESSAGE)
+  {
+    handleEngineOnAllOff(m);
+    if (bVerbose) Serial.print("PDM1 ");
+    if (m.data[0] == 0xf0) 
+    {
+      lastPDM1inputs1to6 = m;
+      if (bVerbose) Serial.print(" Button Saved 1-6 ");
+    }
+    
+    if (m.data[0] == 0xf8) 
+    {
+      lastPDM1inputs7to12 = m;
+      if (bVerbose) Serial.print(" Button Saved 7-12 ");
+    }
+    if (bVerbose) 
+    {
+      
+      printBin(m.data[6]);
+      Serial.print(" ");
+      printBin(m.data[7]);
+    }
+  }
+  if (m.can_id == PDM2_MESSAGE)
+  {
+    handleFrontButtonDoubleTap(m);
+    
+    if (bVerbose) Serial.print("PDM2 ");
+    if (m.data[0] == 0xf0) 
+    {
+      lastPDM2inputs1to6 = m;
+      
+    }
+    if (m.data[0] == 0xf8) 
+    {
+      lastPDM2inputs7to12 = m;
+      if (bVerbose) Serial.print(" 7-12 ");
+    }
+    if (bVerbose) 
+    {
+      Serial.print("BUTTON.  ");
+      printBin(m.data[6]);
+      Serial.print(" ");
+      printBin(m.data[7]);
+      
+    }
+    
+  }
+
+    
+  
+    
+  float fTemp = (m.data[4] & 0b11) * 256.0 + m.data[5];
+  fAmbientVoltage = fTemp * 5.0 / 1024.0;
+  if (bVerbose) Serial.print(" ");
+  if (bVerbose) Serial.print(fAmbientVoltage);
+  if (bVerbose) Serial.println("V");
+    
+}
+void CM::handlePDMShort (can_frame m)
+{
+  
+  if ((m.data[2] != 0) || (m.data[3] != 0))
+  {
+    Serial.print("***PDM SHORT FIRED!*** ");
+    printCan(m,false);
+    
+  }
+  if (bVerbose) Serial.println();
+}
 
 
 void CM::pressdigitalbutton (can_frame mLast,int nDataIndex,int nByteNum)
@@ -229,32 +444,8 @@ void CM::getTankInfo(char *buffer)
   //sprintf(buffer,"{%s,%s}",sz1,sz2);
 }
 
-void CM::getMiscInfo(char *buffer)
-{
-  StaticJsonDocument<128> doc;
-  
-  doc["fAmbientTemp"] = cToF(fAmbientTemp);
-  doc["nVentSpeed"] = roofFan.nSpeed;
-  serializeJson (doc,buffer,64);
-  
-  
- 
- 
-}
 
 
-void CM::getAllInfo(char *buffer)
-{
-  
-   
-  char heaterInfo[300];getHeaterInfo(heaterInfo);
-  char acInfo[300];getACInfo(acInfo);
-  char tankInfo[160];getTankInfo(tankInfo);
-  char miscInfo[64];getMiscInfo(miscInfo);
-  
-  sprintf(buffer,"{\"heater\":%s,\"acInfo\":%s,\"tankInfo\":%s,\"miscInfo\":%s}",heaterInfo,acInfo,tankInfo,miscInfo);
-  
-}
 
 
 
@@ -702,6 +893,265 @@ void CM::handlePDMCommand(can_frame m)
 
   if (bVerbose) Serial.println();
 }
+
+
+////PDM MESSAGES.  THIS IS A BIT OF , WELL, A SUCKFEST
+
+void CM::handleHeartBeat (can_frame m)
+{
+    if (bVerbose) Serial.println("PDM ID");
+    return; 
+}
+
+void CM::handleMessage134 (float t,can_frame m)
+{
+    if (bVerbose) Serial.print(" 134) ");
+    if (bVerbose) Serial.print("channel: ");
+    if (bVerbose) Serial.print(m.data[1] & 0b1111);
+    if (bVerbose) Serial.println();
+}
+void CM::handleMessage135 (float t,can_frame m)
+{
+  if (bVerbose) Serial.print(" 135) ");
+  if (bVerbose) Serial.println();
+   
+}
+void CM::handleMessage136 (float t,can_frame m)
+{
+  if (bVerbose) Serial.print(" 136) ");
+  if (bVerbose) Serial.println();
+}
+
+float CM::feedbackAmps(can_frame m,int nChannelNumber)
+{
+  int nByteOffset;
+  if ((nChannelNumber == 1) || (nChannelNumber == 7)) nByteOffset = 2;
+  if ((nChannelNumber == 2) || (nChannelNumber == 8)) nByteOffset = 3;
+  if ((nChannelNumber == 3) || (nChannelNumber == 9)) nByteOffset = 4;
+  if ((nChannelNumber == 4) || (nChannelNumber == 10)) nByteOffset = 5;
+  if ((nChannelNumber == 5) || (nChannelNumber == 11)) nByteOffset = 6;
+  if ((nChannelNumber == 6) || (nChannelNumber == 12)) nByteOffset = 7;
+  float f = (float)m.data[nByteOffset] * 0.125;
+  return f;
+  
+}
+
+ void CM::handleFeedback1to6 (float t,can_frame m)            //PDM1 Feedback Amps
+ {
+  if (m.can_id == PDM1_MESSAGE)
+  { 
+    if (bVerbose) Serial.println("Feedback PDM1 1-6");
+    for (int i = 1;i<=6;i++) pdm1_output[i].fFeedback = feedbackAmps(m,i);
+    
+    
+  }
+  if (m.can_id == PDM2_MESSAGE)
+  {
+    if (bVerbose) Serial.println("Feedback PDM2 1-6");
+    for (int i = 1;i<=6;i++) pdm2_output[i].fFeedback = feedbackAmps(m,i);
+    
+    
+  }
+
+ }
+ 
+void CM::handleFeedback7to12 (float t,can_frame m)
+{
+  
+  if (m.can_id == PDM1_MESSAGE)
+  {
+    if (bVerbose) Serial.println("Feedback PDM1 7-12");
+    for (int i = 7;i<= 12;i++) pdm1_output[i].fFeedback = feedbackAmps(m,i);
+    
+  }
+  if (m.can_id == PDM2_MESSAGE)
+  {
+    if (bVerbose) Serial.println("Feedback PDM2 7-12");
+    for (int i = 7;i<=12;i++) pdm2_output[i].fFeedback = feedbackAmps(m,i);
+    
+  }
+  
+    
+}
+
+void CM::handleSupplyVoltage (can_frame m)
+{
+  float fTemp = m.data[7] * 256 + m.data[6];
+  if (bVerbose) 
+  {
+   
+    Serial.print("Battery Supply Voltage: ");
+    Serial.print(fTemp / 256.0);
+    Serial.println("V");
+  }
+  return;
+}
+
+void CM::handlePDMMessage (float t,can_frame m)
+{
+  
+  byte m0 = m.data[0];
+  if ((m0 == 0xf0) || (m0 == 0xf8))                       // BUTTON PRESS!
+  {
+    handlePDMDigitalInput(t,m);
+    return;
+  }
+  if (m0 == 0xFC)                                    //134 (86h) Motor Model Handshake
+  {
+    handleMessage134(t,m);                          
+    return;
+  }
+
+  if (m0 == 0xFD)                                    //129 (81h) Analog Inputs 3-4, Output Diagnostics
+  {
+    //handleMessage129(t,m);                          
+    return;
+  }
+ 
+  
+  if ((m0 == 0xF9) || (m0 == 0xC9) || (m0 == 0x39))                   //F9 and C9 both seem to do the same thing
+  {
+    handleFeedback1to6(t,m);                            //Output feedback.  One of the bytes seems to become 1
+    return;                                             //94EF111E           
+  }
+  if ((m0 == 0x0a) || (m0 == 0xCA) || (m0 == 0xFA))
+  {
+    handleFeedback7to12(t,m);                            //Output feedback.  One of the bytes seems to become 1
+    return;                                             //94EF111E           
+  }
+  if (m0 == 0xfb) 
+  {
+    handleSupplyVoltage(m);
+    return;
+    
+  }
+  if (m0 == 0xfe)
+  {
+    handleHeartBeat(m);
+    return;
+  }
+  printCan(m,false);
+  Serial.println ("? PDM Message: ");
+  
+  
+  
+  
+  
+  return;
+  
+}
+void CM::printInputDiagnostics(byte b)
+{
+  /*
+   * 00 No faults
+01 Short-circuit
+10 Over-current
+11 Open-circuit
+   */
+  for (int i = 0; i <=3; i++)
+  {
+    byte bTemp = (b & 0b11000000) >>6;
+    if (bTemp == 0) Serial.print("NF ");
+    if (bTemp == 1) Serial.print("SC ");
+    if (bTemp == 2) Serial.print("OC ");
+    if (bTemp == 3) Serial.print("OP ");
+    b = b << 2;
+  }
+}
+
+
+float CM::tenBitAnalog(can_frame m,int channelNumber)
+{
+  int nByteOffset = 0;
+  if ((channelNumber == 1) || (channelNumber == 3) || (channelNumber == 5) || (channelNumber == 7)) nByteOffset = 4;
+  if ((channelNumber == 2) || (channelNumber == 4) || (channelNumber == 6) || (channelNumber == 8)) nByteOffset = 6;
+  
+   
+  long l = m.data[nByteOffset] + ((m.data[nByteOffset + 1] & 0b00000011) << 8);
+  float fRet = (float)l * 0.00488759;
+  return fRet;
+}
+char CM::getDigitalInput (can_frame m,int nInputNumber)
+{
+  int nByteOffset = 1 + ((nInputNumber-1) >> 2);
+  byte bRet;
+  if ((nInputNumber == 1) || (nInputNumber == 5) || (nInputNumber == 9)) bRet = (m.data[nByteOffset]  & 0b11000000) >> 6;
+  if ((nInputNumber == 2) || (nInputNumber == 6) || (nInputNumber == 10)) bRet = (m.data[nByteOffset] & 0b00110000) >> 4;
+  if ((nInputNumber == 3) || (nInputNumber == 7) || (nInputNumber == 11)) bRet = (m.data[nByteOffset] & 0b00001100) >> 2;
+  if ((nInputNumber == 4) || (nInputNumber == 8) || (nInputNumber == 12)) bRet = (m.data[nByteOffset] & 0b00000011) >> 0;
+  bRet = bRet & 0b11;
+  if (bRet == 0b00) return ('o');
+  if (bRet == 0b01) return ('-');
+  if (bRet == 0b10) return ('+');
+  if (bRet == 0b11) return ('?');
+  
+}
+
+
+void CM::handleMessage128 (float t,can_frame m)
+{
+  Serial.print("128) D 1-12, Anlg 1-2 ");
+  for (int i = 1;i<=12;i++) 
+  {
+    char ch = getDigitalInput(m,i);Serial.print(ch);Serial.print(" ");
+  }
+  if (bVerbose) Serial.print(tenBitAnalog(m,1));
+  if (bVerbose) Serial.print("V ");
+  if (bVerbose) Serial.print(tenBitAnalog(m,2));
+  if (bVerbose) Serial.print("V ");
+  if (bVerbose) Serial.println();
+}
+void CM::handleMessage129 (float t,can_frame m)
+{
+   
+  if (bVerbose) Serial.print(" 129) Outpt Diags, Anlg 3-4 ");
+  if (bVerbose) printInputDiagnostics(m.data[1]);
+  if (bVerbose) Serial.print(" ");
+  if (bVerbose) printInputDiagnostics(m.data[2]);
+  if (bVerbose) Serial.print(" ");
+  if (bVerbose) printInputDiagnostics(m.data[3]);
+  
+  if (bVerbose) Serial.print(" ");
+  if (bVerbose) Serial.print(tenBitAnalog(m,3));
+  if (bVerbose) Serial.print("V ");
+  if (bVerbose) Serial.print(tenBitAnalog(m,4));
+  if (bVerbose) Serial.print("V ");
+  if (bVerbose) Serial.println();
+}
+void CM::handleMessage130 (float t,can_frame m)
+{
+  Serial.print(" 130) Sensor Status, Anlg 5-6 ");
+  if ((m.data[1] & 1) == 1) Serial.print("!+ ");else Serial.print("   ");
+  if ((m.data[1] & 2) == 2) Serial.print("!- ");else Serial.print("   ");
+  float v = m.data[2] + ((m.data[3] & 0b00000011) << 8);
+  v = v * 64.0/1024.0;
+  Serial.print("Supply: ");Serial.print(v);Serial.print("v ");
+  Serial.print(tenBitAnalog(m,5));Serial.print("V ");
+  Serial.print(tenBitAnalog(m,6));Serial.print("V ");
+  Serial.println();
+}
+void CM::handleMessage131 (float t,can_frame m)
+{
+   
+  Serial.print(" 131) Outpt Diags, Anlg 3-4 ");
+  printInputDiagnostics(m.data[1]);
+  Serial.print(" ");
+  printInputDiagnostics(m.data[2]);
+  Serial.print(" ");
+  printInputDiagnostics(m.data[3]);
+  
+  Serial.print(" ");
+  Serial.print(tenBitAnalog(m,3));
+  Serial.print("V ");
+  Serial.print(tenBitAnalog(m,4));
+  Serial.print("V ");
+  Serial.println();
+ }
+
+
+
+
+
 //////////////ROOF FAN
 
 void CM::handleAck (can_frame m)
@@ -724,13 +1174,13 @@ void CM::handleRoofFanStatus (can_frame m)
   roofFan.nSpeed = m.data[2];
   roofFan.nWindDirection = m.data[3] & 0x03;
   roofFan.nDomePosition = (m.data[3] >> 2) & 0xf;// 0 = closed, 1 = 1/4 2 = 1/2, 3 = 3/4, 4 = totally open
-  
+  roofFan.bRainSensor = m.data[3] >> 6;
   
   roofFan.fSetPoint = bytes2DegreesC(m.data[6],m.data[7]);
   
   if (bVerbose) 
   {
-    Serial.print("Rain: ");Serial.print(m.data[3] >> 6,HEX); 
+    Serial.print("Rain: ");Serial.print(roofFan.bRainSensor,HEX); 
     Serial.print(" stat: ");Serial.print(roofFan.nSystemStatus);
     Serial.print(" fanMode: ");Serial.print(roofFan.nFanMode);
     Serial.print(" speedMode: ");Serial.print(roofFan.nSpeedMode);
@@ -887,74 +1337,79 @@ void CM::handleMiniPump()
   if ((bPumpPress == 0) && (bLastPumpPress > 0))
   {
     Serial.println("MiniPump!");
-    if (pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) pressdigitalbutton(lastPDM2inputs1to6,7,3);
+    pumpOff();
   }
   bLastPumpPress = bPumpPress;
   
 }
-void CM::handleSmartSiphon()
+void CM::handleSmartSiphon(int nInitVal)
 {
-  static long pauseMillis = millis();
-  static byte bLastPumpPress = 0;
-  static byte smartSiphonStatus = 0;
-  static long millisAtPress = millis();
-  static byte bLastPumpCommand = 0;
-  static float fAmpsAfter5Seconds = 0;
-  if (millis() - pauseMillis < 100) return;
+  static int nMode = 0;
+  static int nCurrentamps = 0;
+  static float fThresholdAmps = 0;
+  static byte lastPumpCommand = 0;
+  static long fiveSecondsAfterStart;
+  //1 = init.  waiting for pump on
+  //2 = pump is now on.  Waiting 5 seconds
+  //3 = 5 seconds completed get amps
   
-  pauseMillis = millis();
-
   
-  if (bSmartSiphonMode == false) return;
-  if (lastPDM2inputs1to6.can_dlc == 0) return;
-
-  //if the pump if off, return;
-  if (pdm1_output[PDM1_OUT_WATER_PUMP].fFeedback == 0)
+  if (nInitVal == 1)
   {
-    Serial.println("feedback = 0");
-    smartSiphonStatus = 0;
-  }
-  if ((pdm1_output[PDM1_OUT_WATER_PUMP].bCommand == 0) && (bLastPumpCommand > 0))
+    Serial.println("Smart Siphon started");
+    nMode = 1;
+    lastPumpCommand = *bPtrPumpCommand;
+  } 
+  if (nInitVal < 0)
   {
-    Serial.println("Pump is turned off");
-    smartSiphonStatus = 0;
-    bLastPumpCommand = pdm1_output[PDM1_OUT_WATER_PUMP].bCommand;
-    return;
+    Serial.println("Smart Siphon stopped");
+    nMode = 0;
     
   }
-  bLastPumpCommand = pdm1_output[PDM1_OUT_WATER_PUMP].bCommand;
-  //get the command state of the pump
-  byte bPumpPress = lastPDM2inputs1to6.data[7]  & 0b11000000;
- 
   
-  if ((smartSiphonStatus == 0) && (bPumpPress > 0) && (bLastPumpPress == 0)) //the user just pressed the button
+  if (nMode == 1)
   {
-    Serial.println("Button Pressed");
-    smartSiphonStatus = 1;
-    millisAtPress = millis();
-   
-    
-  }
-  bLastPumpPress = bPumpPress;
-  if ((smartSiphonStatus == 1) && (millis() - millisAtPress > 5000))
-  {
-    Serial.println("5 seconds!");
-    smartSiphonStatus = 2;
-    fAmpsAfter5Seconds = pdm1_output[PDM1_OUT_WATER_PUMP].fFeedback;
-    Serial.println(fAmpsAfter5Seconds);
-    
-  }
-  if (smartSiphonStatus == 2)
-
-  {
-    if (fAmpsAfter5Seconds - pdm1_output[PDM1_OUT_WATER_PUMP].fFeedback > 2)
+    if ((*bPtrPumpCommand > 0) && (lastPumpCommand == 0)) 
     {
-      Serial.println("DRY!!");
-      //if (pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) pressdigitalbutton(lastPDM2inputs1to6,7,3);
-      smartSiphonStatus = 0;
+      Serial.println("Pump has started");
+      fiveSecondsAfterStart = millis() + 10000;
+      nMode = 2;
       
     }
+     
   }
+  if (nMode == 2)
+  {
+    if ((*bPtrPumpCommand == 0) && (lastPumpCommand > 0))
+    {
+      Serial.println("User turned pump off");
+      nMode = 1;
+      
+    }
+    if (millis() > fiveSecondsAfterStart)
+    {
+      Serial.println("current Amps: ");
+      fThresholdAmps = pdm1_output[PDM1_OUT_WATER_PUMP].fFeedback;
+      Serial.println(fThresholdAmps);
+      nMode = 3;
+    }
+    
+  }
+    
+    
+  
+  if (nMode == 3)
+  {
+    float fAmps = pdm1_output[PDM1_OUT_WATER_PUMP].fFeedback;
+    if (fAmps < fThresholdAmps - 1) 
+    {
+      pumpOff();
+      nMode = 1;
+      Serial.println("Pump Off");
+    }
+    
+  }
+  lastPumpCommand = *bPtrPumpCommand;
   
   
 }
@@ -969,13 +1424,100 @@ void CM::handleDrinkBlink(bool bBlinkMode)
   
   if (lastFreshTankLevel != nFreshTankLevel) 
   {
-    handleCabinBlink(true);//true means init
+    handleCabinBlink(1);//true means init
     Serial.println("**BLINK**");
     
   }
   lastFreshTankLevel = nFreshTankLevel;
 }
 
+void CM::pressAwningEnable()
+{
+  pressdigitalbutton(lastPDM1inputs7to12,6,3);
+}
+void CM::pumpOff ()
+{
+  if (*bPtrPumpCommand > 0) pressdigitalbutton(lastPDM2inputs1to6,7,3);
+}
+
+void CM::circOff()
+{
+  if (pdm1_output[PDM1_OUT_RECIRC_PUMP].fFeedback > 0) pressCirc();
+}
+
+void CM::awningOff()
+{
+  if (pdm1_output[PDM1_OUT_AWNING_LIGHTS].fFeedback > 0) pressAwning();
+}
+void CM::cargoOff()
+{
+  if (pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) pressCargo();
+}
+void CM::cabinOff()
+{
+  if (pdm1_output[PDM1_OUT_CABIN_LIGHTS].fFeedback > 0) pressCabin();
+}
+void CM::pressCabin()
+{
+  pressdigitalbutton(lastPDM1inputs1to6,6,0);
+}
+
+void CM::pressCargo()
+{
+  pressdigitalbutton(lastPDM1inputs1to6,6,1);
+}
+
+void CM::pressAwning()
+{
+  pressdigitalbutton(lastPDM1inputs1to6,7,3);
+}
+void CM::pressCirc()
+{
+  pressdigitalbutton(lastPDM1inputs1to6,7,2);
+}
+void CM::pressPump ()
+{
+  pressdigitalbutton(lastPDM2inputs1to6,7,3);
+}
+
+void CM::pressAwningIn ()
+{
+  pressdigitalbutton(lastPDM1inputs7to12,7,3);
+}
+
+void CM::pressAwningOut ()
+{
+  pressdigitalbutton(lastPDM1inputs7to12,7,2);
+}
+
+void CM::pressAux()
+{
+  pressdigitalbutton(lastPDM2inputs1to6,6,0);
+}
+void CM::pressDrain()
+{
+  pressdigitalbutton(lastPDM2inputs7to12,6,1);
+}
+void CM::auxOff()
+{
+   if (pdm2_output[PDM2_OUT_AUX_POWER].bCommand > 0) pressAux();
+}
+void CM::cabinOn()
+{
+    if (pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) pressCabin(); 
+}
+void CM::cargoOn()
+{
+  if (pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) pressCargo();
+}
+void CM::awningOn()
+{
+  if (pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand == 0) pressAwning();
+}
+void CM::auxOn()
+{
+  if (pdm2_output[PDM2_OUT_AUX_POWER].bCommand == 0) pressAux();
+}
 void CM::handleMinutePump(int nInitVal)
 {
   static long pumpOnMillis = 0;
@@ -1006,12 +1548,155 @@ void CM::handleMinutePump(int nInitVal)
     if ((nMinutePumpStatus == 1) && (millis() - pumpOnMillis > lWaitMillis))
     {
       Serial.println("Pump Off!");
-      if (pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) pressdigitalbutton(lastPDM2inputs1to6,7,3);
+      pumpOff();
       nMinutePumpStatus = 0;
       bActive = false;
     }
   }
   bLastPumpPress = bPumpPress;
 }
+void CM::handleShowerJerk(int nInitVal)
+{
+  static int nStatus = 0;
+  static int nFinalTankLevel = -1;
+  if (nFreshTankLevel == -1) return;  //case where tank is not initialized
+  if (nInitVal > 0)
+  {
+    
+    nFinalTankLevel = max(0,nFreshTankLevel - nInitVal);
+    nStatus = 1; // running
+    Serial.print("Shower Jerk Init.  Level: ");
+    Serial.println(nFinalTankLevel);
+    szMessage = "Jerk Running to: " + String(nFinalTankLevel);
+  }
+  if (nStatus > 0)
+  {
+    if (nFreshTankLevel <= nFinalTankLevel) 
+    {
+      pumpOff();
+      nStatus = 0;
+      nFinalTankLevel = -1;
+      
+    }
+  }
+  
+  
+}
+void CM::handleRandomLights(int nInitVal)
+{
+  static int nStatus = 0;
+  static int nRepeatInterval = 0;
+  static long nextInterval = 0;
+  if (nInitVal > 0)
+  {
+    nStatus = 1;
+    nRepeatInterval = nInitVal;
+    nextInterval = millis() + 60000 * nRepeatInterval;
+    
+    Serial.print("Random Lights Initialized.  Interval:");
+    Serial.println(nRepeatInterval);
+  }
+  if (nInitVal < 0)
+  {
+    nStatus = 0;
+    Serial.println("Random Lights Stopped");
+  }
+  if (nStatus == 1)
+  {
+    if (millis() > nextInterval)
+    {
+      pressCabin();
+      pressCargo();
+      pressAwning();
+      
+      nextInterval = millis() + 60000 * nRepeatInterval;
+      Serial.println("Pressed light");
+      
+    }
+  }
+}
+void CM::handleWaterTracker(int nInitVal)
+{
+  static int nStatus = 0;
+  static int freshTankLevelOn;
+  static byte lastPumpCommand = 0;
+  
+  if (nInitVal > 0)
+  {
+    nStatus = 1;
+    Serial.print("Shower Tracker Initialized");
+    lastPumpCommand = *bPtrPumpCommand;
+    
+  }
+  if (nInitVal < 0)
+  {
+    nStatus = 0;
+    Serial.println("Shower Tracker Stopped");
+  }
+  if (nStatus == 1)
+  {
+    
+    if ((bPtrPumpCommand > 0) && (lastPumpCommand == 0))
+    {
+      nStatus = 2;
+      freshTankLevelOn = nFreshTankLevel;
+      Serial.println("Pump On"); 
+    } 
+  }
+  if (nStatus == 2)
+  {
+    
+    if ((bPtrPumpCommand == 0) && (lastPumpCommand > 0))
+    {
+      nStatus = 0;
+      Serial.println("Pump repeased");
+     
+      szMessage = String(freshTankLevelOn - nFreshTankLevel) + " STUs used";
+      Serial.println(szMessage);
+      
+      
+    }
+    
+  }
+  lastPumpCommand = *bPtrPumpCommand;
+  
+}
+  
+void CM::handleWaterTempBlink(int nInitVal)
+{
+  static int nStatus = 0;
+  static float fLastTemp = 0;
+  if (nInitVal > 0)
+  {
+    nStatus = 1;
+    Serial.print("Temperature Blink Initialized");
+    return;
+    
+    
+  }
+  if (nInitVal < 0) 
+  {
+    nStatus = 0;
+    Serial.println("Temp Blink Stopped");
+  }
+  if (nStatus == 1)
+  {
+    
+    if ((fLastTemp <= 50) && (heater.fGlycolOutletTemp > 50))
+    {
+      handleCabinBlink(5);//true means init
+      Serial.println("**BLINK**");
+      nStatus = 0;
+    }
+  }
+  fLastTemp = heater.fGlycolOutletTemp;
+  
+  
+  
+}
+  
+  
+  
+
   
   

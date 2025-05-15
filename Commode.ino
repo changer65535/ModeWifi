@@ -48,7 +48,7 @@ void sendPost (char *szCommand)
   char postData[128];
   sprintf(postData,"command=%s",szCommand);
   
-  Serial.println(postData);
+  if (bWebVerbose) Serial.println(postData);
   HTTPClient http;   
   http.begin(hostURL);  //Specify destination for HTTP request
   http.addHeader("Content-Type", "application/x-www-form-urlencoded");             //Specify content-type header
@@ -94,6 +94,7 @@ void postCurrentState()
   doc["acSetpointCool"] = cm.ac.fSetpointCool;
   doc["nDomePosition"] = cm.roofFan.nDomePosition;
   doc["nRoofFanSpeed"] = cm.roofFan.nSpeed;
+  doc["bRainSensor"] = cm.roofFan.bRainSensor;
   doc["acOperatingMode"] = cm.ac.operatingMode;
   doc["acFanMode"] = cm.ac.fanMode;
   doc["acFanSpeed"] = cm.ac.fanSpeed;
@@ -101,6 +102,7 @@ void postCurrentState()
   doc["freshTankDenom"] = cm.nFreshTankDenom;
   doc["grayTankLevel"] = cm.nGrayTankLevel;
   doc["grayTankDenom"] = cm.nGrayTankDenom;
+  doc["message"] = cm.szMessage;
   if (cm.heater.bFurnace) doc["glycolOutletTemp"] = cm.heater.fGlycolOutletTemp;
   else doc["glycolOutletTemp"] = 0;
   
@@ -778,14 +780,7 @@ void handleAJAX()
     return;
     
   }
-  if (szCommand == "getAllInfo")
-  {
-    char szBuffer[1000];
-    cm.getAllInfo(szBuffer);
-    server.send(200, "text/plain", szBuffer);
-    return;
-    
-  }
+  
     
     Serial.print("NOT PARSED.  REVERTING TO HANDLE COMMAND ");
     Serial.println(szCommand);
@@ -925,11 +920,7 @@ String extractQuote(String szCommand)
   
 }
 
-void printBin(byte aByte) 
-{
-  for (int8_t aBit = 7; aBit >= 0; aBit--)
-    Serial.write(bitRead(aByte, aBit) ? '1' : '0');
-}
+
 void parseFile (String szFname)
 {
   
@@ -1016,69 +1007,63 @@ void handleCommand (String szCommand)
   }
   //BUTTONS
   
-  if (szCommand.startsWith ("pressCargo")) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
-  if (szCommand.startsWith ("pressCabin")) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
-  if (szCommand.startsWith ("pressAwning")) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,3);
-  if (szCommand.startsWith ("pressCirc")) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,2);
-  if (szCommand.startsWith ("pressPump")) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,7,3);
-  if (szCommand.startsWith ("pressDrain")) cm.pressdigitalbutton(cm.lastPDM2inputs7to12,6,1);
-  if (szCommand.startsWith ("pressAux")) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,6,0);
-  if (szCommand.startsWith ("cabinOn"))
-  {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
-   
-  }
+  if (szCommand.startsWith ("pressCargo")) cm.pressCargo();
+  if (szCommand.startsWith ("pressCabin")) cm.pressCabin();
+  if (szCommand.startsWith ("pressAwning")) cm.pressAwning();
+  if (szCommand.startsWith ("pressCirc")) cm.pressCirc();
+  if (szCommand.startsWith ("pressPump")) 
+  if (szCommand.startsWith ("pressDrain")) cm.pressDrain();
+  if (szCommand.startsWith ("pressAux")) cm.pressAux();
+  if (szCommand.startsWith ("cabinOn")) cm.cabinOn();
+  
   if (szCommand.startsWith("lightsOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
+    cm.cabinOn();
+    cm.cargoOn();
   }
   if (szCommand.startsWith("lightsOff"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,3);
+    cm.cabinOff();
+    cm.cargoOff();
+    cm.awningOff();
     
   }
   if (szCommand == "allOff")
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
+    cm.cabinOff();
+    cm.cargoOff();
+    cm.awningOff();
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
+    cm.auxOff();
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,3);
+    cm.circOff();
     delay(500);
-    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,6,0);
-    delay(500);
-    if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,2);
-    delay(500);
-    if (cm.pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,7,3);
+    cm.pumpOff();
     delay(500);
     
   }
   if (szCommand.startsWith("allOffXAux"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].fFeedback > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
+    cm.cabinOff();
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
+    cm.cargoOff();
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].fFeedback > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,3);
+    cm.awningOff();
     delay(500);
-    //if (cm.pdm2_output[PDM2_OUT_AUX_POWER].fFeedback > 0) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,6,0);
-    //delay(500);
-    if (cm.pdm1_output[PDM1_OUT_RECIRC_PUMP].fFeedback > 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,2);
+    
+    cm.circOff();
     delay(500);
-    if (cm.pdm1_output[PDM1_OUT_WATER_PUMP].bCommand > 0) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,7,3);
+    cm.pumpOff();
     delay(500);
     
     
   }
   if (szCommand.startsWith("allOn"))
   {
-    if (cm.pdm1_output[PDM1_OUT_CABIN_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,0);
-    if (cm.pdm1_output[PDM1_OUT_CARGO_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,6,1);
-    if (cm.pdm1_output[PDM1_OUT_AWNING_LIGHTS].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM1inputs1to6,7,3);
-    if (cm.pdm2_output[PDM2_OUT_AUX_POWER].bCommand == 0) cm.pressdigitalbutton(cm.lastPDM2inputs1to6,6,0);
+    cm.cabinOn();
+    cm.cargoOn();
+    cm.awningOn();
+    cm.auxOn();
     
   }
 if (szCommand.startsWith("printPDM"))
@@ -1142,14 +1127,19 @@ if (szCommand.startsWith("printPDM"))
   if (szCommand == "miniPumpOff") cm.bMiniPumpMode = false;
 
   if (szCommand.startsWith("minutePump ")) cm.handleMinutePump(gaInt(szCommand,' '));
+  if (szCommand.startsWith("drinkBlink ")) cm.handleDrinkBlink(gaInt(szCommand,' '));
+  if (szCommand.startsWith("showerJerk ")) cm.handleShowerJerk(gaInt(szCommand,' ')); 
+  if (szCommand.startsWith("randomLights ")) cm.handleRandomLights(gaInt(szCommand,' ')); 
+  if (szCommand.startsWith("waterTracker ")) cm.handleWaterTracker(gaInt(szCommand,' ')); 
 
+  if (szCommand.startsWith("glycolTempBlink ")) cm.handleWaterTempBlink(gaInt(szCommand,' '));
   
-  
-  if (szCommand == "blink") cm.handleCabinBlink(true);
-  if (szCommand.startsWith("acOff")) cm.acCommand(0,0,0);
+  if (szCommand.startsWith("blink")) cm.handleCabinBlink(gaInt(szCommand,' '));
+  if (szCommand.startsWith("acOff")) cm.acOff();
   if (szCommand.startsWith("acOn")) cm.acCommand(1,1,64);
   if (szCommand.startsWith("acModeHeat")) cm.setACOperatingMode(0b10);
   if (szCommand.startsWith("acFanOnly")) cm.setACOperatingMode(0b100);
+
 
   if (szCommand.startsWith("acFanLow")) cm.setACFanSpeed(10);
   if (szCommand.startsWith("acFanHigh")) cm.setACFanSpeed(255);
@@ -1157,6 +1147,7 @@ if (szCommand.startsWith("printPDM"))
   
   if (szCommand.startsWith("acAlwaysOn")) cm.setACFanMode(1);
   if (szCommand.startsWith("acAuto")) cm.setACFanMode(0);
+  if (szCommand.startsWith("smartSiphon ")) cm.handleSmartSiphon(gaInt(szCommand,' '));
   
  
   if (szCommand.startsWith ("printAmps1 "))
@@ -1196,20 +1187,16 @@ if (szCommand.startsWith("printPDM"))
   }
   if (szCommand.startsWith("awningEnable"))
   {
-    cm.pressdigitalbutton(cm.lastPDM1inputs7to12,6,3);
+    cm.pressAwningEnable();
     
   }
   if (szCommand.startsWith("awningOut"))
   {
-    cm.pressdigitalbutton(cm.lastPDM1inputs7to12,7,2);
+    cm.pressAwningOut();
     
     
   }
-  if (szCommand.startsWith("awningIn"))
-  {
-    cm.pressdigitalbutton(cm.lastPDM1inputs7to12,7,3);
-  }
-  
+  if (szCommand.startsWith("awningIn")) cm.pressAwningIn();
   
   
   if (szCommand.startsWith("openVent")) cm.openVent();
@@ -1520,12 +1507,12 @@ void handleCanbus ()
     
     if ((m.can_id == PDM1_MESSAGE) || (m.can_id == PDM2_MESSAGE)) 
     {
-      handlePDMMessage(t,m);
+      cm.handlePDMMessage(t,m);
       return;
     }
     if ((m.can_id == PDM1_SHORT) || (m.can_id == PDM2_SHORT))
     {
-      handlePDMShort(m);
+      cm.handlePDMShort(m);
       return;
     }
     if (m.can_id == RIXENS_COMMAND) 
@@ -1640,30 +1627,8 @@ bool filterInByte0 (byte b)
 
 
 
-float tenBitAnalog(can_frame m,int channelNumber)
-{
-  int nByteOffset = 0;
-  if ((channelNumber == 1) || (channelNumber == 3) || (channelNumber == 5) || (channelNumber == 7)) nByteOffset = 4;
-  if ((channelNumber == 2) || (channelNumber == 4) || (channelNumber == 6) || (channelNumber == 8)) nByteOffset = 6;
-  
-   
-  long l = m.data[nByteOffset] + ((m.data[nByteOffset + 1] & 0b00000011) << 8);
-  float fRet = (float)l * 0.00488759;
-  return fRet;
-}
-float feedbackAmps(can_frame m,int nChannelNumber)
-{
-  int nByteOffset;
-  if ((nChannelNumber == 1) || (nChannelNumber == 7)) nByteOffset = 2;
-  if ((nChannelNumber == 2) || (nChannelNumber == 8)) nByteOffset = 3;
-  if ((nChannelNumber == 3) || (nChannelNumber == 9)) nByteOffset = 4;
-  if ((nChannelNumber == 4) || (nChannelNumber == 10)) nByteOffset = 5;
-  if ((nChannelNumber == 5) || (nChannelNumber == 11)) nByteOffset = 6;
-  if ((nChannelNumber == 6) || (nChannelNumber == 12)) nByteOffset = 7;
-  float f = (float)m.data[nByteOffset] * 0.125;
-  return f;
-  
-}
+
+
 
 void printInputs(byte b)
 {
@@ -1684,404 +1649,17 @@ void printInputs(byte b)
   }
 }
 
-char getDigitalInput (can_frame m,int nInputNumber)
-{
-  int nByteOffset = 1 + ((nInputNumber-1) >> 2);
-  byte bRet;
-  if ((nInputNumber == 1) || (nInputNumber == 5) || (nInputNumber == 9)) bRet = (m.data[nByteOffset]  & 0b11000000) >> 6;
-  if ((nInputNumber == 2) || (nInputNumber == 6) || (nInputNumber == 10)) bRet = (m.data[nByteOffset] & 0b00110000) >> 4;
-  if ((nInputNumber == 3) || (nInputNumber == 7) || (nInputNumber == 11)) bRet = (m.data[nByteOffset] & 0b00001100) >> 2;
-  if ((nInputNumber == 4) || (nInputNumber == 8) || (nInputNumber == 12)) bRet = (m.data[nByteOffset] & 0b00000011) >> 0;
-  bRet = bRet & 0b11;
-  if (bRet == 0b00) return ('o');
-  if (bRet == 0b01) return ('-');
-  if (bRet == 0b10) return ('+');
-  if (bRet == 0b11) return ('?');
-  
-}
-
-void printInputDiagnostics(byte b)
-{
-  /*
-   * 00 No faults
-01 Short-circuit
-10 Over-current
-11 Open-circuit
-   */
-  for (int i = 0; i <=3; i++)
-  {
-    byte bTemp = (b & 0b11000000) >>6;
-    if (bTemp == 0) Serial.print("NF ");
-    if (bTemp == 1) Serial.print("SC ");
-    if (bTemp == 2) Serial.print("OC ");
-    if (bTemp == 3) Serial.print("OP ");
-    b = b << 2;
-  }
-}
-
-void handleMessage128 (float t,can_frame m)
-{
-  Serial.print("128) D 1-12, Anlg 1-2 ");
-  for (int i = 1;i<=12;i++) 
-  {
-    char ch = getDigitalInput(m,i);Serial.print(ch);Serial.print(" ");
-  }
-  if (bVerbose) Serial.print(tenBitAnalog(m,1));
-  if (bVerbose) Serial.print("V ");
-  if (bVerbose) Serial.print(tenBitAnalog(m,2));
-  if (bVerbose) Serial.print("V ");
-  if (bVerbose) Serial.println();
-}
-void handleMessage129 (float t,can_frame m)
-{
-   
-  if (bVerbose) Serial.print(" 129) Outpt Diags, Anlg 3-4 ");
-  if (bVerbose) printInputDiagnostics(m.data[1]);
-  if (bVerbose) Serial.print(" ");
-  if (bVerbose) printInputDiagnostics(m.data[2]);
-  if (bVerbose) Serial.print(" ");
-  if (bVerbose) printInputDiagnostics(m.data[3]);
-  
-  if (bVerbose) Serial.print(" ");
-  if (bVerbose) Serial.print(tenBitAnalog(m,3));
-  if (bVerbose) Serial.print("V ");
-  if (bVerbose) Serial.print(tenBitAnalog(m,4));
-  if (bVerbose) Serial.print("V ");
-  if (bVerbose) Serial.println();
-}
-void handleMessage130 (float t,can_frame m)
-{
-  Serial.print(" 130) Sensor Status, Anlg 5-6 ");
-  if ((m.data[1] & 1) == 1) Serial.print("!+ ");else Serial.print("   ");
-  if ((m.data[1] & 2) == 2) Serial.print("!- ");else Serial.print("   ");
-  float v = m.data[2] + ((m.data[3] & 0b00000011) << 8);
-  v = v * 64.0/1024.0;
-  Serial.print("Supply: ");Serial.print(v);Serial.print("v ");
-  Serial.print(tenBitAnalog(m,5));Serial.print("V ");
-  Serial.print(tenBitAnalog(m,6));Serial.print("V ");
-  Serial.println();
-}
-void handleMessage131 (float t,can_frame m)
-{
-   
-  Serial.print(" 131) Outpt Diags, Anlg 3-4 ");
-  printInputDiagnostics(m.data[1]);
-  Serial.print(" ");
-  printInputDiagnostics(m.data[2]);
-  Serial.print(" ");
-  printInputDiagnostics(m.data[3]);
-  
-  Serial.print(" ");
-  Serial.print(tenBitAnalog(m,3));
-  Serial.print("V ");
-  Serial.print(tenBitAnalog(m,4));
-  Serial.print("V ");
-  Serial.println();
- }
- void handleFeedback1to6 (float t,can_frame m)            //PDM1 Feedback Amps
- {
-  if (m.can_id == PDM1_MESSAGE)
-  { 
-    if (bVerbose) Serial.println("Feedback PDM1 1-6");
-    for (int i = 1;i<=6;i++) cm.pdm1_output[i].fFeedback = feedbackAmps(m,i);
-    
-    
-  }
-  if (m.can_id == PDM2_MESSAGE)
-  {
-    if (bVerbose) Serial.println("Feedback PDM2 1-6");
-    for (int i = 1;i<=6;i++) cm.pdm2_output[i].fFeedback = feedbackAmps(m,i);
-    
-    
-  }
-
- }
- 
-void handleFeedback7to12 (float t,can_frame m)
-{
-  
-  if (m.can_id == PDM1_MESSAGE)
-  {
-    if (bVerbose) Serial.println("Feedback PDM1 7-12");
-    for (int i = 7;i<= 12;i++) cm.pdm1_output[i].fFeedback = feedbackAmps(m,i);
-    
-  }
-  if (m.can_id == PDM2_MESSAGE)
-  {
-    if (bVerbose) Serial.println("Feedback PDM2 7-12");
-    for (int i = 7;i<=12;i++) cm.pdm2_output[i].fFeedback = feedbackAmps(m,i);
-    
-  }
-  
-    
-}
-void handleMessage134 (float t,can_frame m)
-{
-    if (bVerbose) Serial.print(" 134) ");
-    if (bVerbose) Serial.print("channel: ");
-    if (bVerbose) Serial.print(m.data[1] & 0b1111);
-    if (bVerbose) Serial.println();
-}
-void handleMessage135 (float t,can_frame m)
-{
-  if (bVerbose) Serial.print(" 135) ");
-  if (bVerbose) Serial.println();
-   
-}
-void handleMessage136 (float t,can_frame m)
-{
-  if (bVerbose) Serial.print(" 136) ");
-  if (bVerbose) Serial.println();
-}
 
 
 
-void handleEngineOnAllOff(can_frame m)
-{
-  static byte lastB6 = 10;
-  if (m.can_id != PDM1_MESSAGE) return;
-  if (m.data[0] != 0xf8) return;
-  byte b6 = m.data[6];
-  //if (b6 == 0x20) Serial.print("!");else Serial.print(" ");
-  
-  //cm.printCan (m,false);Serial.print("B6: ");Serial.println(b6,HEX);
-  if ((b6 == 0x20) and (lastB6 != 0x20))
-  {
-    Serial.println("ENGINE JUST TURNED ON!!");
-    handleCommand("acOff");
-    handleCommand("closeVent");
-    handleCommand("allOffXAux");
-    handleCommand("awningEnable");
-    handleCommand("awningIn");
-    
-    exit;
-  }
-  lastB6 = b6;
-  return;
-  
-  
-}
-void handleFrontButtonDoubleTap(can_frame m)
-{
-  static long tap1mSec = millis();
-  static int tapState = 0;
-  if (m.can_id != PDM2_MESSAGE) return;
-  if (m.data[0] != 0xf0) return;
-  byte b7 = m.data[7];
-  
-  if ((millis() - tap1mSec) > 10000) 
-  {
-    tapState = 0;
-  }
-  if (tapState == 0)
-  {
-    if ((b7 & 0b00110000) == 0x20)
-    {
-      Serial.println("TAP");
-      tap1mSec = millis();
-      tapState = 1;               //single press;
-    }
-    
-  }
-  if (tapState == 1)
-  {
-    if ((b7 & 0b00110000) == 0x00)
-    {
-      Serial.println("Release");
-      tap1mSec = millis();
-      tapState = 2;               //single press;
-    }
-  }
-  if (tapState == 2)
-  {
-    if ((b7 & 0b00110000) == 0x20)
-    {
-      Serial.println("Second Tap");
-      tapState = 3; 
-    }
-  }
-  if (tapState == 3)
-  {
-    if ((b7 & 0b00110000) == 0x20)
-    {
-      
-      Serial.println("Second Release");
-      tapState = 4;
-      
-    }
-    
-    
-  }
-  if (tapState == 4)
-  {
-    Serial.println("Waiting");
-    if ((millis() - tap1mSec) > 1000)
-    {
-      cm.acCommand(0,0,0);
-      delay(500);
-      cm.closeVent();
-      delay(500);
-      handleCommand("allOffXAux");
-      handleCommand("awningEnable");
-      handleCommand("awningIn");
-      handleCommand("acOff");
-      handleCommand("closeVent");
-      
-      tapState = 0;
-    }
-  }
-  
-}
-void handlePDMDigitalInput (float t,can_frame m)         //This is ambient voltage and digital inputs
-{
-  
-  if (m.can_id == PDM1_MESSAGE)
-  {
-    handleEngineOnAllOff(m);
-    if (bVerbose) Serial.print("PDM1 ");
-    if (m.data[0] == 0xf0) 
-    {
-      cm.lastPDM1inputs1to6 = m;
-      if (bVerbose) Serial.print(" Button Saved 1-6 ");
-    }
-    
-    if (m.data[0] == 0xf8) 
-    {
-      cm.lastPDM1inputs7to12 = m;
-      if (bVerbose) Serial.print(" Button Saved 7-12 ");
-    }
-    if (bVerbose) 
-    {
-      
-      printBin(m.data[6]);
-      Serial.print(" ");
-      printBin(m.data[7]);
-    }
-  }
-  if (m.can_id == PDM2_MESSAGE)
-  {
-    handleFrontButtonDoubleTap(m);
-    
-    if (bVerbose) Serial.print("PDM2 ");
-    if (m.data[0] == 0xf0) 
-    {
-      cm.lastPDM2inputs1to6 = m;
-      
-    }
-    if (m.data[0] == 0xf8) 
-    {
-      cm.lastPDM2inputs7to12 = m;
-      if (bVerbose) Serial.print(" 7-12 ");
-    }
-    if (bVerbose) 
-    {
-      Serial.print("BUTTON.  ");
-      printBin(m.data[6]);
-      Serial.print(" ");
-      printBin(m.data[7]);
-      
-    }
-    
-  }
 
-    
-  if (nPDMToPrint == 1) Serial.println(cm.pdm1_output[nPDMChannel].fFeedback);
-  if (nPDMToPrint == 2) Serial.println(cm.pdm2_output[nPDMChannel].fFeedback);
-  
-    
-  float fTemp = (m.data[4] & 0b11) * 256.0 + m.data[5];
-  cm.fAmbientVoltage = fTemp * 5.0 / 1024.0;
-  if (bVerbose) Serial.print(" ");
-  if (bVerbose) Serial.print(cm.fAmbientVoltage);
-  if (bVerbose) Serial.println("V");
-    
-}
-void handlePDMShort (can_frame m)
-{
-  
-  if ((m.data[2] != 0) || (m.data[3] != 0))
-  {
-    Serial.print("***PDM SHORT FIRED!*** ");
-    cm.printCan(m,false);
-    
-  }
-  if (bVerbose) Serial.println();
-}
 
-void handleSupplyVoltage (can_frame m)
-{
-  float fTemp = m.data[7] * 256 + m.data[6];
-  if (bVerbose) 
-  {
-   
-    Serial.print("Battery Supply Voltage: ");
-    Serial.print(fTemp / 256.0);
-    Serial.println("V");
-  }
-  return;
-}
-void handleHeartBeat (can_frame m)
-{
-    if (bVerbose) Serial.println("PDM ID");
-    return; 
-}
-void handlePDMMessage (float t,can_frame m)
-{
-  
-  byte m0 = m.data[0];
-  
-  
-  if ((m0 == 0xf0) || (m0 == 0xf8))                       // BUTTON PRESS!
-  {
-    handlePDMDigitalInput(t,m);
-    
-    return;
-  }
 
-  if (m0 == 0xFC)                                    //134 (86h) Motor Model Handshake
-  {
-    handleMessage134(t,m);                          
-    return;
-  }
 
-  if (m0 == 0xFD)                                    //129 (81h) Analog Inputs 3-4, Output Diagnostics
-  {
-    //handleMessage129(t,m);                          
-    return;
-  }
- 
-  
-  if ((m0 == 0xF9) || (m0 == 0xC9) || (m0 == 0x39))                   //F9 and C9 both seem to do the same thing
-  {
-    handleFeedback1to6(t,m);                            //Output feedback.  One of the bytes seems to become 1
-    return;                                           //94EF111E           
-  }
-  if ((m0 == 0x0a) || (m0 == 0xCA) || (m0 == 0xFA))
-  {
-    handleFeedback7to12(t,m);                            //Output feedback.  One of the bytes seems to become 1
-    return;                                           //94EF111E           
-  }
-  if (m0 == 0xfb) 
-  {
-    handleSupplyVoltage(m);
-    return;
-    
-  }
-  if (m0 == 0xfe)
-  {
-    handleHeartBeat(m);
-    return;
-  }
-  cm.printCan(m,false);
-  Serial.println ("? PDM Message: ");
-  
-  
-  
-  
-  
-  return;
-  
-}
+
+
+
+
 
 
 void setupCanbus ()
@@ -2153,7 +1731,7 @@ void handleUploadData()
 
 void loop()
 {
-   //cm.bSmartSiphonMode = true; // tempdel
+   
    handleSerial();
    server.handleClient();
    handleCanbus();
@@ -2163,6 +1741,10 @@ void loop()
    cm.handleSmartSiphon();
    cm.handleDrinkBlink();
    cm.handleMinutePump();
+   cm.handleShowerJerk();
+   cm.handleRandomLights();
+   cm.handleWaterTracker();
+   cm.handleWaterTempBlink();
    
    ///////////////SET LED TO BLINK IF ACCESS POINT MODE IS TRUE
    
